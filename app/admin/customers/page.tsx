@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
-import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight, Edit, Trash2, Coins } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function CustomersManagementPage() {
@@ -22,6 +22,21 @@ export default function CustomersManagementPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const ITEMS_PER_PAGE = 10
+  
+  // Edit customer state
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState<Profile | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [updating, setUpdating] = useState(false)
+  
+  // Adjust points state
+  const [showAdjustPoints, setShowAdjustPoints] = useState(false)
+  const [adjustingCustomer, setAdjustingCustomer] = useState<Profile | null>(null)
+  const [pointsAdjustment, setPointsAdjustment] = useState('')
+  const [adjustmentReason, setAdjustmentReason] = useState<'add' | 'subtract'>('add')
+  const [adjusting, setAdjusting] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -164,6 +179,117 @@ export default function CustomersManagementPage() {
     }
   }
 
+  function openEditForm(customer: Profile) {
+    setEditingCustomer(customer)
+    setEditName(customer.full_name || '')
+    setEditPhone(customer.phone || '')
+    setEditEmail(customer.email || '')
+    setShowEditForm(true)
+  }
+
+  async function handleUpdateCustomer() {
+    if (!editingCustomer || !editName) {
+      toast.error('Please provide customer name')
+      return
+    }
+
+    setUpdating(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editName,
+          phone: editPhone || null,
+          email: editEmail || null,
+        })
+        .eq('id', editingCustomer.id)
+
+      if (error) throw error
+
+      toast.success('Customer updated successfully')
+      setShowEditForm(false)
+      setEditingCustomer(null)
+      loadData()
+    } catch (error: any) {
+      console.error('Error updating customer:', error)
+      toast.error(error.message || 'Failed to update customer')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  function openAdjustPoints(customer: Profile) {
+    setAdjustingCustomer(customer)
+    setPointsAdjustment('')
+    setAdjustmentReason('add')
+    setShowAdjustPoints(true)
+  }
+
+  async function handleAdjustPoints() {
+    if (!adjustingCustomer || !restaurant) return
+
+    const amount = parseInt(pointsAdjustment)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    setAdjusting(true)
+    try {
+      const isStampMode = restaurant.loyalty_mode === 'stamps'
+      const currentValue = isStampMode ? adjustingCustomer.stamps : adjustingCustomer.points
+      
+      let newValue: number
+      if (adjustmentReason === 'add') {
+        newValue = currentValue + amount
+      } else {
+        newValue = Math.max(0, currentValue - amount)
+      }
+
+      const updateData = isStampMode 
+        ? { stamps: newValue } 
+        : { points: newValue }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', adjustingCustomer.id)
+
+      if (error) throw error
+
+      toast.success(`${isStampMode ? 'Stamps' : 'Points'} adjusted successfully`)
+      setShowAdjustPoints(false)
+      setAdjustingCustomer(null)
+      loadData()
+    } catch (error: any) {
+      console.error('Error adjusting points:', error)
+      toast.error(error.message || 'Failed to adjust points')
+    } finally {
+      setAdjusting(false)
+    }
+  }
+
+  async function handleDeleteCustomer(customer: Profile) {
+    if (!confirm(`Are you sure you want to delete ${customer.full_name || 'this customer'}? This will also delete all their transactions and redemptions.`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', customer.id)
+
+      if (error) throw error
+
+      toast.success('Customer deleted successfully')
+      loadData()
+    } catch (error: any) {
+      console.error('Error deleting customer:', error)
+      toast.error(error.message || 'Failed to delete customer')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -200,6 +326,163 @@ export default function CustomersManagementPage() {
         </div>
       </div>
 
+      {/* Edit Customer Modal */}
+      {showEditForm && editingCustomer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Edit Customer</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="label">Full Name *</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-field"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="label">Phone Number</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="input-field"
+                  placeholder="8123456789"
+                />
+              </div>
+
+              <div>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="input-field"
+                  placeholder="customer@email.com"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleUpdateCustomer}
+                  disabled={updating}
+                  className="flex-1 btn-primary"
+                >
+                  {updating ? 'Updating...' : 'Update Customer'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditForm(false)
+                    setEditingCustomer(null)
+                  }}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Points Modal */}
+      {showAdjustPoints && adjustingCustomer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">
+              Adjust {restaurant?.loyalty_mode === 'stamps' ? 'Stamps' : 'Points'}
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="card bg-gray-50">
+                <p className="text-sm text-gray-600 mb-1">{adjustingCustomer.full_name}</p>
+                <p className="text-2xl font-bold text-primary">
+                  Current: {restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points}
+                  {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                </p>
+              </div>
+
+              <div>
+                <label className="label">Action</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setAdjustmentReason('add')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${
+                      adjustmentReason === 'add'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => setAdjustmentReason('subtract')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${
+                      adjustmentReason === 'subtract'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Subtract
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Amount *</label>
+                <input
+                  type="number"
+                  value={pointsAdjustment}
+                  onChange={(e) => setPointsAdjustment(e.target.value)}
+                  className="input-field"
+                  placeholder="10"
+                  min="1"
+                  required
+                />
+              </div>
+
+              {pointsAdjustment && (
+                <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
+                  <p className="text-sm text-gray-700 mb-1">New balance will be:</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {adjustmentReason === 'add'
+                      ? (restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points) + parseInt(pointsAdjustment || '0')
+                      : Math.max(0, (restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points) - parseInt(pointsAdjustment || '0'))
+                    }
+                    {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAdjustPoints}
+                  disabled={adjusting}
+                  className="flex-1 btn-primary"
+                >
+                  {adjusting ? 'Adjusting...' : 'Confirm'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAdjustPoints(false)
+                    setAdjustingCustomer(null)
+                  }}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Customer Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
@@ -298,6 +581,29 @@ export default function CustomersManagementPage() {
                   <p className="text-sm text-gray-600">
                     {customer.phone || customer.email || 'No contact info'}
                   </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEditForm(customer)}
+                    className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                    title="Edit customer"
+                  >
+                    <Edit className="h-4 w-4 text-blue-600" />
+                  </button>
+                  <button
+                    onClick={() => openAdjustPoints(customer)}
+                    className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+                    title="Adjust points/stamps"
+                  >
+                    <Coins className="h-4 w-4 text-green-600" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCustomer(customer)}
+                    className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Delete customer"
+                  >
+                    <Trash2 className="h-4 w-4 text-red-600" />
+                  </button>
                 </div>
               </div>
 

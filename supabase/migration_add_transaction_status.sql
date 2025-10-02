@@ -74,3 +74,13 @@ CREATE TRIGGER after_transaction_cancel
   AFTER UPDATE ON transactions
   FOR EACH ROW
   EXECUTE FUNCTION handle_transaction_cancellation();
+
+-- Add policy for admins to delete customer profiles
+DROP POLICY IF EXISTS "Admins can delete customer profiles" ON profiles;
+CREATE POLICY "Admins can delete customer profiles" ON profiles
+  FOR DELETE USING (
+    role = 'customer' AND restaurant_id IN (
+      SELECT restaurant_id FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );

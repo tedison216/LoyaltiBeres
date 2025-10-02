@@ -166,6 +166,14 @@ CREATE POLICY "Users can update their own profile" ON profiles
 CREATE POLICY "Users can insert their own profile" ON profiles
   FOR INSERT WITH CHECK (id = auth.uid());
 
+CREATE POLICY "Admins can delete customer profiles" ON profiles
+  FOR DELETE USING (
+    role = 'customer' AND restaurant_id IN (
+      SELECT restaurant_id FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
 -- Rewards policies
 CREATE POLICY "Anyone can view active rewards" ON rewards
   FOR SELECT USING (is_active = true);
