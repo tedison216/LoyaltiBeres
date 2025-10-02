@@ -12,7 +12,6 @@ export default function CustomersManagementPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [customers, setCustomers] = useState<Profile[]>([])
-  const [preregistrations, setPreregistrations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
@@ -86,21 +85,6 @@ export default function CustomersManagementPage() {
           console.log('Loaded customers:', customersData.length)
           setCustomers(customersData)
         }
-
-        // Load preregistrations (customers who haven't logged in yet)
-        const { data: preregData, error: preregError } = await supabase
-          .from('customer_preregistrations')
-          .select('*')
-          .eq('restaurant_id', profileData.restaurant_id)
-          .is('linked_profile_id', null)
-          .order('created_at', { ascending: false })
-
-        if (preregError) {
-          console.error('Preregistrations error:', preregError)
-        } else if (preregData) {
-          console.log('Loaded preregistrations:', preregData.length)
-          setPreregistrations(preregData)
-        }
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -112,8 +96,13 @@ export default function CustomersManagementPage() {
   }
 
   async function handleAddCustomer() {
-    if (!restaurant || !profile || (!newCustomerPhone && !newCustomerEmail)) {
-      toast.error('Please provide phone or email')
+    if (!restaurant || !profile || !newCustomerPhone) {
+      toast.error('Please provide phone number')
+      return
+    }
+
+    if (!newCustomerName) {
+      toast.error('Please provide customer name')
       return
     }
 
@@ -122,19 +111,23 @@ export default function CustomersManagementPage() {
       // Generate random 4-digit PIN if not provided
       const customerPin = newCustomerPin || Math.floor(1000 + Math.random() * 9000).toString()
 
-      // Add to preregistrations table
-      const { error } = await supabase.from('customer_preregistrations').insert({
+      // Create a temporary ID (will be replaced when they log in)
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+      // Add directly to profiles table
+      const { error } = await supabase.from('profiles').insert({
+        id: tempId,
         restaurant_id: restaurant.id,
-        full_name: newCustomerName || null,
-        phone: newCustomerPhone || null,
+        role: 'customer',
+        full_name: newCustomerName,
+        phone: newCustomerPhone,
         email: newCustomerEmail || null,
         pin: customerPin,
-        created_by: profile.id,
       })
 
       if (error) {
         if (error.code === '23505') {
-          toast.error('A customer with this phone or email already exists')
+          toast.error('A customer with this phone already exists')
         } else {
           throw error
         }
@@ -178,7 +171,7 @@ export default function CustomersManagementPage() {
             <div>
               <h1 className="text-2xl font-bold">Customers</h1>
               <p className="text-sm opacity-90">
-                {customers.length} active • {preregistrations.length} pending
+                {customers.length} total members
               </p>
             </div>
           </div>
@@ -199,24 +192,26 @@ export default function CustomersManagementPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="label">Full Name</label>
+                <label className="label">Full Name *</label>
                 <input
                   type="text"
                   value={newCustomerName}
                   onChange={(e) => setNewCustomerName(e.target.value)}
                   className="input-field"
                   placeholder="John Doe"
+                  required
                 />
               </div>
 
               <div>
-                <label className="label">Phone Number</label>
+                <label className="label">Phone Number *</label>
                 <input
                   type="tel"
                   value={newCustomerPhone}
                   onChange={(e) => setNewCustomerPhone(e.target.value)}
                   className="input-field"
                   placeholder="8123456789"
+                  required
                 />
               </div>
 
@@ -272,38 +267,7 @@ export default function CustomersManagementPage() {
       )}
 
       <div className="px-6 mt-6 space-y-4">
-        {preregistrations.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-sm font-semibold text-gray-500 mb-3 uppercase">Pending Registration ({preregistrations.length})</h2>
-            <div className="space-y-3">
-              {preregistrations.map((prereg) => (
-                <div key={prereg.id} className="card bg-yellow-50 border-l-4 border-yellow-400">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1">
-                        {prereg.full_name || 'Unknown'}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {prereg.phone || prereg.email || 'No contact info'}
-                      </p>
-                      <p className="text-xs text-yellow-700 mt-2">
-                        ⏳ Waiting for customer to log in
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {customers.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-gray-500 mb-3 uppercase">Active Members ({customers.length})</h2>
-          </div>
-        )}
-
-        {customers.length === 0 && preregistrations.length === 0 ? (
+        {customers.length === 0 ? (
           <div className="card text-center py-12">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No customers yet</p>
