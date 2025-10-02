@@ -25,34 +25,54 @@ export default function LoginPage() {
 
       setLoading(true)
       try {
-        // Find customer by phone and verify PIN
-        const { data: profile, error } = await supabase
+        // First check if customer exists in profiles
+        let profile = null
+        let customerPin = null
+        let restaurantId = null
+
+        const { data: existingProfile } = await supabase
           .from('profiles')
           .select('*')
           .eq('phone', phone)
           .eq('role', 'customer')
           .single()
 
-        if (error || !profile) {
-          toast.error('Phone number not found. Please contact the restaurant.')
-          setLoading(false)
-          return
+        if (existingProfile) {
+          profile = existingProfile
+          customerPin = existingProfile.pin
+          restaurantId = existingProfile.restaurant_id
+        } else {
+          // Check preregistrations if not in profiles
+          const { data: prereg } = await supabase
+            .from('customer_preregistrations')
+            .select('*')
+            .eq('phone', phone)
+            .is('linked_profile_id', null)
+            .single()
+
+          if (!prereg) {
+            toast.error('Phone number not found. Please contact the restaurant.')
+            setLoading(false)
+            return
+          }
+
+          customerPin = prereg.pin
+          restaurantId = prereg.restaurant_id
         }
 
-        if (profile.pin !== pin) {
+        if (customerPin !== pin) {
           toast.error('Incorrect PIN')
           setLoading(false)
           return
         }
 
         // Sign in with email (using phone as identifier)
-        // We'll use a workaround: sign in with a generated email
         const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
         
-        // Check if auth user exists
+        // Try to sign in
         const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
           email: generatedEmail,
-          password: pin + phone, // Use PIN + phone as password
+          password: pin + phone,
         })
 
         if (signInError) {
@@ -69,11 +89,39 @@ export default function LoginPage() {
 
           if (signUpError) throw signUpError
 
-          // Update profile with auth user ID
-          await supabase
-            .from('profiles')
-            .update({ id: signUpData.user!.id })
-            .eq('phone', phone)
+          // Create or update profile
+          if (profile) {
+            // Update existing profile with auth ID
+            await supabase
+              .from('profiles')
+              .update({ id: signUpData.user!.id })
+              .eq('phone', phone)
+          } else {
+            // Create new profile from preregistration
+            const { data: prereg } = await supabase
+              .from('customer_preregistrations')
+              .select('*')
+              .eq('phone', phone)
+              .single()
+
+            if (prereg) {
+              await supabase.from('profiles').insert({
+                id: signUpData.user!.id,
+                restaurant_id: restaurantId,
+                role: 'customer',
+                full_name: prereg.full_name,
+                phone: phone,
+                email: prereg.email,
+                pin: pin,
+              })
+
+              // Link preregistration
+              await supabase
+                .from('customer_preregistrations')
+                .update({ linked_profile_id: signUpData.user!.id })
+                .eq('id', prereg.id)
+            }
+          }
         }
 
         toast.success('Login successful!')
