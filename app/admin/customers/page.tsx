@@ -18,6 +18,7 @@ export default function CustomersManagementPage() {
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
+  const [newCustomerPin, setNewCustomerPin] = useState('')
   const [adding, setAdding] = useState(false)
 
   useEffect(() => {
@@ -118,12 +119,16 @@ export default function CustomersManagementPage() {
 
     setAdding(true)
     try {
+      // Generate random 4-digit PIN if not provided
+      const customerPin = newCustomerPin || Math.floor(1000 + Math.random() * 9000).toString()
+
       // Add to preregistrations table
       const { error } = await supabase.from('customer_preregistrations').insert({
         restaurant_id: restaurant.id,
         full_name: newCustomerName || null,
         phone: newCustomerPhone || null,
         email: newCustomerEmail || null,
+        pin: customerPin,
         created_by: profile.id,
       })
 
@@ -136,11 +141,12 @@ export default function CustomersManagementPage() {
         return
       }
 
-      toast.success('Customer added! They can now log in and will be linked automatically.')
+      toast.success(`Customer added! PIN: ${customerPin}. Share this PIN with the customer.`)
       setShowAddForm(false)
       setNewCustomerName('')
       setNewCustomerPhone('')
       setNewCustomerEmail('')
+      setNewCustomerPin('')
       loadData()
     } catch (error: any) {
       console.error('Error adding customer:', error)
@@ -223,6 +229,21 @@ export default function CustomersManagementPage() {
                   className="input-field"
                   placeholder="customer@email.com"
                 />
+              </div>
+
+              <div>
+                <label className="label">PIN (optional - auto-generated if empty)</label>
+                <input
+                  type="text"
+                  value={newCustomerPin}
+                  onChange={(e) => setNewCustomerPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="input-field"
+                  placeholder="1234"
+                  maxLength={4}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty to auto-generate a 4-digit PIN
+                </p>
               </div>
 
               <div className="flex gap-2">

@@ -13,29 +13,86 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
-  const [otp, setOtp] = useState('')
+  const [pin, setPin] = useState('')
+  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone')
 
   async function handleCustomerLogin() {
-    if (!phone && !email) {
-      toast.error('Please enter your phone number or email')
-      return
-    }
+    if (loginMethod === 'phone') {
+      if (!phone || !pin) {
+        toast.error('Please enter your phone number and PIN')
+        return
+      }
 
-    setLoading(true)
-    try {
-      if (phone) {
-        // Send OTP to phone
-        const { error } = await supabase.auth.signInWithOtp({
-          phone: phone.startsWith('+') ? phone : `+62${phone}`,
+      setLoading(true)
+      try {
+        // Find customer by phone and verify PIN
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('phone', phone)
+          .eq('role', 'customer')
+          .single()
+
+        if (error || !profile) {
+          toast.error('Phone number not found. Please contact the restaurant.')
+          setLoading(false)
+          return
+        }
+
+        if (profile.pin !== pin) {
+          toast.error('Incorrect PIN')
+          setLoading(false)
+          return
+        }
+
+        // Sign in with email (using phone as identifier)
+        // We'll use a workaround: sign in with a generated email
+        const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
+        
+        // Check if auth user exists
+        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: generatedEmail,
+          password: pin + phone, // Use PIN + phone as password
         })
-        
-        if (error) throw error
-        
-        toast.success('OTP sent to your phone!')
-        setOtpSent(true)
-      } else {
-        // Send magic link to email
+
+        if (signInError) {
+          // User doesn't exist in auth, create them
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: generatedEmail,
+            password: pin + phone,
+            options: {
+              data: {
+                phone: phone,
+              }
+            }
+          })
+
+          if (signUpError) throw signUpError
+
+          // Update profile with auth user ID
+          await supabase
+            .from('profiles')
+            .update({ id: signUpData.user!.id })
+            .eq('phone', phone)
+        }
+
+        toast.success('Login successful!')
+        router.push('/customer')
+      } catch (error: any) {
+        console.error('Login error:', error)
+        toast.error(error.message || 'Login failed')
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // Email magic link
+      if (!email) {
+        toast.error('Please enter your email')
+        return
+      }
+
+      setLoading(true)
+      try {
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: {
@@ -46,53 +103,14 @@ export default function LoginPage() {
         if (error) throw error
         
         toast.success('Check your email for the login link!')
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to send login link')
+      } finally {
+        setLoading(false)
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send login code')
-    } finally {
-      setLoading(false)
     }
   }
 
-  async function handleVerifyOtp() {
-    if (!otp) {
-      toast.error('Please enter the OTP code')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: phone.startsWith('+') ? phone : `+62${phone}`,
-        token: otp,
-        type: 'sms',
-      })
-      
-      if (error) throw error
-      
-      // Check if profile exists, if not create one
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user?.id)
-        .single()
-
-      if (!profile) {
-        await supabase.from('profiles').insert({
-          id: data.user?.id,
-          role: 'customer',
-          phone: phone,
-        })
-      }
-
-      toast.success('Login successful!')
-      router.push('/customer')
-    } catch (error: any) {
-      toast.error(error.message || 'Invalid OTP code')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function handleAdminLogin() {
     if (!email || !password) {
@@ -168,7 +186,30 @@ export default function LoginPage() {
         {!isAdmin ? (
           // Customer Login Form
           <div className="space-y-4">
-            {!otpSent ? (
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setLoginMethod('phone')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  loginMethod === 'phone'
+                    ? 'bg-primary/10 text-primary border-2 border-primary'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                Phone + PIN
+              </button>
+              <button
+                onClick={() => setLoginMethod('email')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  loginMethod === 'email'
+                    ? 'bg-primary/10 text-primary border-2 border-primary'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                Email Link
+              </button>
+            </div>
+
+            {loginMethod === 'phone' ? (
               <>
                 <div>
                   <label className="label">Phone Number</label>
@@ -187,8 +228,34 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <div className="text-center text-sm text-gray-500">OR</div>
+                <div>
+                  <label className="label">PIN</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                    <input
+                      type="password"
+                      placeholder="Enter your 4-digit PIN"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value)}
+                      className="input-field pl-10"
+                      maxLength={4}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ask the restaurant for your PIN
+                  </p>
+                </div>
 
+                <button
+                  onClick={handleCustomerLogin}
+                  disabled={loading}
+                  className="btn-primary w-full"
+                >
+                  {loading ? 'Logging in...' : 'Login'}
+                </button>
+              </>
+            ) : (
+              <>
                 <div>
                   <label className="label">Email</label>
                   <div className="relative">
@@ -208,36 +275,7 @@ export default function LoginPage() {
                   disabled={loading}
                   className="btn-primary w-full"
                 >
-                  {loading ? 'Sending...' : 'Send Login Code'}
-                </button>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="label">Enter OTP Code</label>
-                  <input
-                    type="text"
-                    placeholder="123456"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="input-field"
-                    maxLength={6}
-                  />
-                </div>
-
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={loading}
-                  className="btn-primary w-full"
-                >
-                  {loading ? 'Verifying...' : 'Verify & Login'}
-                </button>
-
-                <button
-                  onClick={() => setOtpSent(false)}
-                  className="btn-secondary w-full"
-                >
-                  Back
+                  {loading ? 'Sending...' : 'Send Login Link'}
                 </button>
               </>
             )}
