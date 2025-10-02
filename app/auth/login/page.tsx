@@ -43,8 +43,8 @@ export default function LoginPage() {
           return
         }
 
-        // Check if profile has temp ID (starts with 'temp_')
-        if (profile.id.startsWith('temp_')) {
+        // Check if this is first time login (temp profile)
+        if (profile.is_temp) {
           // First time login - create auth user and update profile
           const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
           
@@ -60,18 +60,33 @@ export default function LoginPage() {
 
           if (signUpError) throw signUpError
 
-          // Update profile with real auth ID
-          const { error: updateError } = await supabase
+          // Delete old temp profile
+          await supabase
             .from('profiles')
-            .update({ id: signUpData.user!.id })
+            .delete()
             .eq('phone', phone)
+            .eq('is_temp', true)
+
+          // Create new profile with real auth ID
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: signUpData.user!.id,
+              restaurant_id: profile.restaurant_id,
+              role: 'customer',
+              full_name: profile.full_name,
+              phone: phone,
+              email: profile.email,
+              pin: pin,
+              is_temp: false,
+            })
           
-          if (updateError) {
-            console.error('Error updating profile:', updateError)
-            throw updateError
+          if (insertError) {
+            console.error('Error creating profile:', insertError)
+            throw insertError
           }
 
-          console.log('Profile updated with auth ID:', signUpData.user!.id)
+          console.log('Profile created with auth ID:', signUpData.user!.id)
         } else {
           // Returning user - sign in
           const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
