@@ -111,8 +111,8 @@ export default function CustomersManagementPage() {
       // Generate random 4-digit PIN if not provided
       const customerPin = newCustomerPin || Math.floor(1000 + Math.random() * 9000).toString()
 
-      // Create a temporary ID (will be replaced when they log in)
-      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      // Create a proper UUID for temp ID
+      const tempId = crypto.randomUUID()
 
       // Add directly to profiles table
       const { error } = await supabase.from('profiles').insert({
@@ -123,6 +123,7 @@ export default function CustomersManagementPage() {
         phone: newCustomerPhone,
         email: newCustomerEmail || null,
         pin: customerPin,
+        is_temp: true, // Flag to indicate this is a temp profile
       })
 
       if (error) {
