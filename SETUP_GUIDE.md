@@ -108,20 +108,39 @@ For phone OTP, you need an SMS provider:
 #### Method 2: Create Profile and Restaurant
 
 1. Go to **SQL Editor**
-2. Run this query (replace `YOUR_USER_ID` with the UID from above):
+2. **First**, create the restaurant and get its ID:
 
 ```sql
--- First, create a restaurant
+-- Create a restaurant - this will return the restaurant ID
 INSERT INTO restaurants (name, loyalty_mode) 
 VALUES ('My Restaurant', 'stamps') 
 RETURNING id;
+```
 
--- Copy the restaurant ID from the result, then run:
--- Replace YOUR_USER_ID and YOUR_RESTAURANT_ID
+3. **Copy the restaurant ID** from the query result (it will show in the Results panel below, something like: `550e8400-e29b-41d4-a716-446655440000`)
+
+4. **Then**, create the admin profile using both IDs:
+
+```sql
+-- Replace YOUR_USER_ID (from step 5 above) and YOUR_RESTAURANT_ID (from step 3 above)
 INSERT INTO profiles (id, restaurant_id, role, email, full_name)
 VALUES (
-  'YOUR_USER_ID', 
-  'YOUR_RESTAURANT_ID', 
+  'YOUR_USER_ID',           -- The User UID from Authentication > Users
+  'YOUR_RESTAURANT_ID',     -- The restaurant ID from the query above
+  'admin', 
+  'admin@yourrestaurant.com', 
+  'Admin Name'
+);
+```
+
+**Example with real IDs:**
+```sql
+-- If your User UID is: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+-- And your Restaurant ID is: 550e8400-e29b-41d4-a716-446655440000
+INSERT INTO profiles (id, restaurant_id, role, email, full_name)
+VALUES (
+  'a1b2c3d4-e5f6-7890-abcd-ef1234567890', 
+  '550e8400-e29b-41d4-a716-446655440000', 
   'admin', 
   'admin@yourrestaurant.com', 
   'Admin Name'
