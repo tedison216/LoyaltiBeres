@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, Transaction } from '@/lib/types/database'
-import { ArrowLeft, Plus, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Plus, TrendingUp, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
 
@@ -19,11 +19,37 @@ export default function TransactionsManagementPage() {
 
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [selectedCustomer, setSelectedCustomer] = useState<Profile | null>(null)
   const [amount, setAmount] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false)
+  const [filteredCustomers, setFilteredCustomers] = useState<Profile[]>([])
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (searchQuery) {
+      const filtered = customers.filter(customer => {
+        const name = customer.full_name?.toLowerCase() || ''
+        const phone = customer.phone?.toLowerCase() || ''
+        const email = customer.email?.toLowerCase() || ''
+        const query = searchQuery.toLowerCase()
+        return name.includes(query) || phone.includes(query) || email.includes(query)
+      })
+      setFilteredCustomers(filtered)
+    } else {
+      setFilteredCustomers(customers)
+    }
+  }, [searchQuery, customers])
+
+  function handleSelectCustomer(customer: Profile) {
+    setSelectedCustomer(customer)
+    setSelectedCustomerId(customer.id)
+    setShowCustomerSearch(false)
+    setSearchQuery('')
+  }
 
   async function loadData() {
     try {
@@ -145,7 +171,9 @@ export default function TransactionsManagementPage() {
       toast.success(`Transaction added! Customer earned ${earned} ${isStampMode ? 'stamps' : 'points'}`)
       setShowForm(false)
       setSelectedCustomerId('')
+      setSelectedCustomer(null)
       setAmount('')
+      setSearchQuery('')
       loadData()
     } catch (error: any) {
       console.error('Error adding transaction:', error)
@@ -179,18 +207,68 @@ export default function TransactionsManagementPage() {
         <div className="px-6 py-6 space-y-4">
           <div>
             <label className="label">Select Customer *</label>
-            <select
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="input-field"
-            >
-              <option value="">Choose a customer...</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.full_name || customer.phone || customer.email}
-                </option>
-              ))}
-            </select>
+            
+            {selectedCustomer ? (
+              <div className="card bg-primary/5 border-2 border-primary">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-lg">{selectedCustomer.full_name || 'Unknown'}</p>
+                    <p className="text-sm text-gray-600">{selectedCustomer.phone || selectedCustomer.email}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <span className="text-sm">
+                        <strong>{restaurant?.loyalty_mode === 'stamps' ? selectedCustomer.stamps : selectedCustomer.points}</strong>
+                        {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedCustomer(null)
+                      setSelectedCustomerId('')
+                    }}
+                    className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5 text-red-600" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setShowCustomerSearch(true)
+                    }}
+                    onFocus={() => setShowCustomerSearch(true)}
+                    className="input-field pl-10"
+                    placeholder="Search by name, phone, or email..."
+                  />
+                </div>
+                
+                {showCustomerSearch && filteredCustomers.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        onClick={() => handleSelectCustomer(customer)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b last:border-b-0 transition-colors"
+                      >
+                        <p className="font-semibold">{customer.full_name || 'Unknown'}</p>
+                        <p className="text-sm text-gray-600">{customer.phone || customer.email}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {restaurant?.loyalty_mode === 'stamps' ? customer.stamps : customer.points}
+                          {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

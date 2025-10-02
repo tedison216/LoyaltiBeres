@@ -23,13 +23,25 @@ export default function HomePage() {
       }
 
       // Get user profile to determine role
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, full_name')
         .eq('id', session.user.id)
         .single()
 
-      if (profile?.role === 'admin') {
+      // If no profile exists or profile is incomplete, go to onboarding
+      if (error || !profile) {
+        router.push('/customer/onboarding')
+        return
+      }
+
+      // If profile exists but no name, go to onboarding
+      if (!profile.full_name && profile.role === 'customer') {
+        router.push('/customer/onboarding')
+        return
+      }
+
+      if (profile.role === 'admin') {
         router.push('/admin')
       } else {
         router.push('/customer')
