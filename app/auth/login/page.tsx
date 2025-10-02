@@ -151,10 +151,10 @@ export default function LoginPage() {
       <div className="card max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Restaurant Loyalty
+            Irba Steak
           </h1>
           <p className="text-gray-600">
-            {isAdmin ? 'Admin Login' : 'Customer Login'}
+            {isAdmin ? 'Admin Login' : 'Loyalty Program'}
           </p>
         </div>
 

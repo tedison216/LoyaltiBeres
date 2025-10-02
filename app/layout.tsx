@@ -6,8 +6,8 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Restaurant Loyalty',
-  description: 'Earn rewards at your favorite restaurant',
+  title: 'Irba Steak Loyalty',
+  description: 'Earn rewards at Irba Steak',
 }
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 {
-  "name": "restaurant-loyalty",
-  "version": "0.1.0",
+  "name": "irba-steak-loyalty",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

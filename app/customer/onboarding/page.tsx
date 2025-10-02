@@ -101,10 +101,10 @@ export default function OnboardingPage() {
             <UserCircle className="h-12 w-12 text-primary" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome!
+            Welcome to Irba Steak!
           </h1>
           <p className="text-gray-600">
-            Let&apos;s set up your profile to get started
+            Let&apos;s set up your loyalty profile
           </p>
         </div>
 

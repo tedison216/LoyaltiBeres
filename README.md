@@ -1,11 +1,11 @@
-# Restaurant Loyalty Web App
+# Irba Steak Loyalty Program
 
-A configurable mobile-friendly web application that enables restaurants to run their own membership and loyalty programs. Built with Next.js, Supabase, and Tailwind CSS.
+A mobile-friendly loyalty program application for Irba Steak. Built with Next.js, Supabase, and Tailwind CSS.
 
-## Features
+## Features for Irba Steak
 
 ### Customer Features
-- **Authentication**: Passwordless login via OTP (phone/email) or magic link
+- **Authentication**: Phone + PIN login or email magic link
 - **Points/Stamps Tracking**: View real-time balance prominently on homepage
 - **Rewards Catalog**: Browse and redeem available rewards
 - **Promotions**: View active promotional banners and offers

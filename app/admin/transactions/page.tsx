@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, Transaction } from '@/lib/types/database'
-import { ArrowLeft, Plus, TrendingUp, Search, X } from 'lucide-react'
+import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
 
@@ -116,6 +116,55 @@ export default function TransactionsManagementPage() {
       toast.error('Failed to load transactions')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleCancelTransaction(transactionId: string, customerId: string, pointsEarned: number, stampsEarned: number) {
+    if (!confirm('Are you sure you want to cancel this transaction? Points/stamps will be deducted from the customer.')) {
+      return
+    }
+
+    try {
+      // Get customer's current balance
+      const { data: customer } = await supabase
+        .from('profiles')
+        .select('points, stamps')
+        .eq('id', customerId)
+        .single()
+
+      if (!customer) {
+        toast.error('Customer not found')
+        return
+      }
+
+      // Calculate new balance
+      const newPoints = Math.max(0, customer.points - pointsEarned)
+      const newStamps = Math.max(0, customer.stamps - stampsEarned)
+
+      // Update customer balance
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          points: newPoints,
+          stamps: newStamps,
+        })
+        .eq('id', customerId)
+
+      if (updateError) throw updateError
+
+      // Delete transaction
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transactionId)
+
+      if (deleteError) throw deleteError
+
+      toast.success('Transaction cancelled successfully')
+      loadData()
+    } catch (error: any) {
+      console.error('Error cancelling transaction:', error)
+      toast.error(error.message || 'Failed to cancel transaction')
     }
   }
 
@@ -350,12 +399,26 @@ export default function TransactionsManagementPage() {
                     {formatDateTime(transaction.created_at)}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-green-600 font-semibold">
-                    +{transaction.stamps_earned > 0
-                      ? `${transaction.stamps_earned} stamps`
-                      : `${transaction.points_earned} points`}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-green-600 font-semibold">
+                      +{transaction.stamps_earned > 0
+                        ? `${transaction.stamps_earned} stamps`
+                        : `${transaction.points_earned} points`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCancelTransaction(
+                      transaction.id,
+                      transaction.customer_id,
+                      transaction.points_earned,
+                      transaction.stamps_earned
+                    )}
+                    className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Cancel transaction"
+                  >
+                    <Trash2 className="h-5 w-5 text-red-600" />
+                  </button>
                 </div>
               </div>
             </div>
