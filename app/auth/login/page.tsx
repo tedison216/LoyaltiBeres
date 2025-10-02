@@ -89,13 +89,20 @@ export default function LoginPage() {
 
           if (signUpError) throw signUpError
 
+          console.log('Created auth user:', signUpData.user!.id)
+
           // Create or update profile
           if (profile) {
             // Update existing profile with auth ID
-            await supabase
+            const { error: updateError } = await supabase
               .from('profiles')
               .update({ id: signUpData.user!.id })
               .eq('phone', phone)
+            
+            if (updateError) {
+              console.error('Error updating profile:', updateError)
+              throw updateError
+            }
           } else {
             // Create new profile from preregistration
             const { data: prereg } = await supabase
@@ -104,8 +111,10 @@ export default function LoginPage() {
               .eq('phone', phone)
               .single()
 
+            console.log('Preregistration data:', prereg)
+
             if (prereg) {
-              await supabase.from('profiles').insert({
+              const { error: insertError } = await supabase.from('profiles').insert({
                 id: signUpData.user!.id,
                 restaurant_id: restaurantId,
                 role: 'customer',
@@ -115,11 +124,22 @@ export default function LoginPage() {
                 pin: pin,
               })
 
+              if (insertError) {
+                console.error('Error creating profile:', insertError)
+                throw insertError
+              }
+
+              console.log('Profile created successfully')
+
               // Link preregistration
-              await supabase
+              const { error: linkError } = await supabase
                 .from('customer_preregistrations')
                 .update({ linked_profile_id: signUpData.user!.id })
                 .eq('id', prereg.id)
+
+              if (linkError) {
+                console.error('Error linking preregistration:', linkError)
+              }
             }
           }
         }
