@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
-import { ArrowLeft, Users, Award, Gift, Plus, UserPlus } from 'lucide-react'
+import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function CustomersManagementPage() {
@@ -19,10 +19,13 @@ export default function CustomersManagementPage() {
   const [newCustomerEmail, setNewCustomerEmail] = useState('')
   const [newCustomerPin, setNewCustomerPin] = useState('')
   const [adding, setAdding] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [currentPage])
 
   async function loadData() {
     console.log('Loading customers data...')
@@ -71,12 +74,23 @@ export default function CustomersManagementPage() {
           setRestaurant(restaurantData)
         }
 
+        // Get total count for pagination
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('restaurant_id', profileData.restaurant_id)
+          .eq('role', 'customer')
+
+        setTotalCount(count || 0)
+
+        // Get paginated data
         const { data: customersData, error: customersError } = await supabase
           .from('profiles')
           .select('*')
           .eq('restaurant_id', profileData.restaurant_id)
           .eq('role', 'customer')
           .order('created_at', { ascending: false })
+          .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
 
         if (customersError) {
           console.error('Customers error:', customersError)
@@ -319,6 +333,33 @@ export default function CustomersManagementPage() {
               </div>
             </div>
           ))
+        )}
+
+        {/* Pagination */}
+        {totalCount > ITEMS_PER_PAGE && (
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

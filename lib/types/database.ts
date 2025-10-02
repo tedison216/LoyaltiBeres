@@ -1,6 +1,7 @@
 export type LoyaltyMode = 'stamps' | 'points'
 export type UserRole = 'customer' | 'admin'
 export type RedemptionStatus = 'pending' | 'verified' | 'cancelled'
+export type TransactionStatus = 'active' | 'cancelled'
 
 export interface Restaurant {
   id: string
@@ -65,6 +66,7 @@ export interface Transaction {
   amount: number
   points_earned: number
   stamps_earned: number
+  status: TransactionStatus
   transaction_date: string
   created_at: string
 }

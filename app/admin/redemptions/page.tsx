@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Redemption } from '@/lib/types/database'
-import { ArrowLeft, CheckCircle, XCircle, Search } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime } from '@/lib/utils/format'
 
@@ -16,6 +16,9 @@ export default function RedemptionsManagementPage() {
   const [loading, setLoading] = useState(true)
   const [searchCode, setSearchCode] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'cancelled'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
     loadData()
@@ -42,8 +45,12 @@ export default function RedemptionsManagementPage() {
   }, [])
 
   useEffect(() => {
+    loadData()
+  }, [currentPage, statusFilter])
+
+  useEffect(() => {
     filterRedemptions()
-  }, [redemptions, searchCode, statusFilter])
+  }, [redemptions, searchCode])
 
   async function loadData() {
     try {
@@ -69,14 +76,35 @@ export default function RedemptionsManagementPage() {
       setProfile(profileData)
 
       if (profileData.restaurant_id) {
-        const { data: redemptionsData } = await supabase
+        // Get total count for pagination
+        let countQuery = supabase
+          .from('redemptions')
+          .select('*', { count: 'exact', head: true })
+          .eq('restaurant_id', profileData.restaurant_id)
+
+        if (statusFilter !== 'all') {
+          countQuery = countQuery.eq('status', statusFilter)
+        }
+
+        const { count } = await countQuery
+        setTotalCount(count || 0)
+
+        // Get paginated data
+        let query = supabase
           .from('redemptions')
           .select(`
             *,
             customer:profiles!redemptions_customer_id_fkey(full_name, phone, email)
           `)
           .eq('restaurant_id', profileData.restaurant_id)
+
+        if (statusFilter !== 'all') {
+          query = query.eq('status', statusFilter)
+        }
+
+        const { data: redemptionsData } = await query
           .order('created_at', { ascending: false })
+          .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
 
         if (redemptionsData) {
           setRedemptions(redemptionsData)
@@ -207,7 +235,8 @@ export default function RedemptionsManagementPage() {
             <p className="text-gray-500">No redemptions found</p>
           </div>
         ) : (
-          filteredRedemptions.map((redemption: any) => (
+          <>
+            {filteredRedemptions.map((redemption: any) => (
             <div key={redemption.id} className="card">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -275,7 +304,35 @@ export default function RedemptionsManagementPage() {
                 </p>
               )}
             </div>
-          ))
+          ))}
+
+            {/* Pagination */}
+            {totalCount > ITEMS_PER_PAGE && (
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {currentPage} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), p + 1))}
+                    disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

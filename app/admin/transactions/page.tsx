@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, Transaction } from '@/lib/types/database'
-import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
+
+type TabType = 'today' | 'older' | 'cancelled'
 
 export default function TransactionsManagementPage() {
   const router = useRouter()
@@ -16,6 +18,11 @@ export default function TransactionsManagementPage() {
   const [customers, setCustomers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabType>('today')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [dateFilter, setDateFilter] = useState('')
+  const ITEMS_PER_PAGE = 10
 
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
@@ -27,7 +34,7 @@ export default function TransactionsManagementPage() {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [activeTab, currentPage, dateFilter])
 
   useEffect(() => {
     if (searchQuery) {
@@ -85,30 +92,64 @@ export default function TransactionsManagementPage() {
           setRestaurant(restaurantData)
         }
 
-        // Load transactions
-        const { data: transactionsData } = await supabase
+        // Build query based on active tab
+        const today = new Date().toISOString().split('T')[0]
+        
+        let countQuery = supabase
+          .from('transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('restaurant_id', profileData.restaurant_id)
+
+        let dataQuery = supabase
           .from('transactions')
           .select(`
             *,
             customer:profiles!transactions_customer_id_fkey(full_name, phone, email)
           `)
           .eq('restaurant_id', profileData.restaurant_id)
+
+        if (activeTab === 'today') {
+          countQuery = countQuery.eq('transaction_date', today).eq('status', 'active')
+          dataQuery = dataQuery.eq('transaction_date', today).eq('status', 'active')
+        } else if (activeTab === 'older') {
+          countQuery = countQuery.lt('transaction_date', today).eq('status', 'active')
+          dataQuery = dataQuery.lt('transaction_date', today).eq('status', 'active')
+          
+          // Apply date filter if set
+          if (dateFilter) {
+            countQuery = countQuery.eq('transaction_date', dateFilter)
+            dataQuery = dataQuery.eq('transaction_date', dateFilter)
+          }
+        } else if (activeTab === 'cancelled') {
+          countQuery = countQuery.eq('status', 'cancelled')
+          dataQuery = dataQuery.eq('status', 'cancelled')
+        }
+
+        // Get total count
+        const { count } = await countQuery
+        setTotalCount(count || 0)
+
+        // Load transactions with pagination
+        const { data: transactionsData } = await dataQuery
           .order('created_at', { ascending: false })
+          .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
 
         if (transactionsData) {
           setTransactions(transactionsData)
         }
 
-        // Load customers
-        const { data: customersData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('restaurant_id', profileData.restaurant_id)
-          .eq('role', 'customer')
-          .order('full_name')
+        // Load customers (only once, not paginated)
+        if (customers.length === 0) {
+          const { data: customersData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('restaurant_id', profileData.restaurant_id)
+            .eq('role', 'customer')
+            .order('full_name')
 
-        if (customersData) {
-          setCustomers(customersData)
+          if (customersData) {
+            setCustomers(customersData)
+          }
         }
       }
     } catch (error) {
@@ -119,52 +160,46 @@ export default function TransactionsManagementPage() {
     }
   }
 
-  async function handleCancelTransaction(transactionId: string, customerId: string, pointsEarned: number, stampsEarned: number) {
+  async function handleCancelTransaction(transactionId: string) {
     if (!confirm('Are you sure you want to cancel this transaction? Points/stamps will be deducted from the customer.')) {
       return
     }
 
     try {
-      // Get customer's current balance
-      const { data: customer } = await supabase
-        .from('profiles')
-        .select('points, stamps')
-        .eq('id', customerId)
-        .single()
-
-      if (!customer) {
-        toast.error('Customer not found')
-        return
-      }
-
-      // Calculate new balance
-      const newPoints = Math.max(0, customer.points - pointsEarned)
-      const newStamps = Math.max(0, customer.stamps - stampsEarned)
-
-      // Update customer balance
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          points: newPoints,
-          stamps: newStamps,
-        })
-        .eq('id', customerId)
-
-      if (updateError) throw updateError
-
-      // Delete transaction
-      const { error: deleteError } = await supabase
+      // Update transaction status to cancelled (trigger will handle points/stamps deduction)
+      const { error } = await supabase
         .from('transactions')
-        .delete()
+        .update({ status: 'cancelled' })
         .eq('id', transactionId)
 
-      if (deleteError) throw deleteError
+      if (error) throw error
 
       toast.success('Transaction cancelled successfully')
       loadData()
     } catch (error: any) {
       console.error('Error cancelling transaction:', error)
       toast.error(error.message || 'Failed to cancel transaction')
+    }
+  }
+
+  async function handleDeleteTransaction(transactionId: string) {
+    if (!confirm('Are you sure you want to permanently delete this cancelled transaction? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transactionId)
+
+      if (error) throw error
+
+      toast.success('Transaction deleted successfully')
+      loadData()
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error)
+      toast.error(error.message || 'Failed to delete transaction')
     }
   }
 
@@ -375,6 +410,80 @@ export default function TransactionsManagementPage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="flex overflow-x-auto">
+          <button
+            onClick={() => {
+              setActiveTab('today')
+              setCurrentPage(1)
+              setDateFilter('')
+            }}
+            className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'today'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-gray-500'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('older')
+              setCurrentPage(1)
+            }}
+            className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'older'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-gray-500'
+            }`}
+          >
+            Older
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('cancelled')
+              setCurrentPage(1)
+              setDateFilter('')
+            }}
+            className={`px-6 py-4 font-semibold whitespace-nowrap transition-colors ${
+              activeTab === 'cancelled'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-gray-500'
+            }`}
+          >
+            Cancelled
+          </button>
+        </div>
+      </div>
+
+      {/* Date filter for older transactions */}
+      {activeTab === 'older' && (
+        <div className="bg-white border-b p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-gray-400" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="input-field flex-1"
+              placeholder="Filter by date"
+            />
+            {dateFilter && (
+              <button
+                onClick={() => setDateFilter('')}
+                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="px-6 mt-6 space-y-4">
         {transactions.length === 0 ? (
           <div className="card text-center py-12">
@@ -385,44 +494,87 @@ export default function TransactionsManagementPage() {
             </button>
           </div>
         ) : (
-          transactions.map((transaction: any) => (
-            <div key={transaction.id} className="card">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1">
-                    {formatCurrency(transaction.amount)}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-1">
-                    {transaction.customer?.full_name || transaction.customer?.phone || transaction.customer?.email || 'Unknown Customer'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatDateTime(transaction.created_at)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-green-600 font-semibold">
-                      +{transaction.stamps_earned > 0
-                        ? `${transaction.stamps_earned} stamps`
-                        : `${transaction.points_earned} points`}
+          <>
+            {transactions.map((transaction: any) => (
+              <div key={transaction.id} className="card">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">
+                      {formatCurrency(transaction.amount)}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      {transaction.customer?.full_name || transaction.customer?.phone || transaction.customer?.email || 'Unknown Customer'}
                     </p>
-                  </div>
-                  <button
-                    onClick={() => handleCancelTransaction(
-                      transaction.id,
-                      transaction.customer_id,
-                      transaction.points_earned,
-                      transaction.stamps_earned
+                    <p className="text-xs text-gray-500">
+                      {formatDateTime(transaction.created_at)}
+                    </p>
+                    {transaction.transaction_date && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Date: {new Date(transaction.transaction_date).toLocaleDateString('id-ID')}
+                      </p>
                     )}
-                    className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                    title="Cancel transaction"
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className={`font-semibold ${transaction.status === 'cancelled' ? 'text-red-600' : 'text-green-600'}`}>
+                        {transaction.status === 'cancelled' ? '-' : '+'}
+                        {transaction.stamps_earned > 0
+                          ? `${transaction.stamps_earned} stamps`
+                          : `${transaction.points_earned} points`}
+                      </p>
+                      {transaction.status === 'cancelled' && (
+                        <span className="text-xs text-red-600">Cancelled</span>
+                      )}
+                    </div>
+                    {activeTab === 'cancelled' ? (
+                      <button
+                        onClick={() => handleDeleteTransaction(transaction.id)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                        title="Permanently delete transaction"
+                      >
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleCancelTransaction(transaction.id)}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                        title="Cancel transaction"
+                      >
+                        <Trash2 className="h-5 w-5 text-red-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Pagination */}
+            {totalCount > ITEMS_PER_PAGE && (
+              <div className="card">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <Trash2 className="h-5 w-5 text-red-600" />
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {currentPage} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), p + 1))}
+                    disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-            </div>
-          ))
+            )}
+          </>
         )}
       </div>
     </div>

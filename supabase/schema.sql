@@ -69,6 +69,7 @@ CREATE TABLE transactions (
   amount DECIMAL(10, 2) NOT NULL,
   points_earned INTEGER DEFAULT 0,
   stamps_earned INTEGER DEFAULT 0,
+  status TEXT CHECK (status IN ('active', 'cancelled')) DEFAULT 'active',
   transaction_date DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -98,6 +99,7 @@ CREATE INDEX idx_promotions_active ON promotions(is_active, start_date, end_date
 CREATE INDEX idx_transactions_customer ON transactions(customer_id);
 CREATE INDEX idx_transactions_restaurant ON transactions(restaurant_id);
 CREATE INDEX idx_transactions_date ON transactions(transaction_date);
+CREATE INDEX idx_transactions_status ON transactions(status);
 CREATE INDEX idx_redemptions_customer ON redemptions(customer_id);
 CREATE INDEX idx_redemptions_restaurant ON redemptions(restaurant_id);
 CREATE INDEX idx_redemptions_status ON redemptions(status);
@@ -212,6 +214,23 @@ CREATE POLICY "Admins can create transactions" ON transactions
     )
   );
 
+CREATE POLICY "Admins can update transactions" ON transactions
+  FOR UPDATE USING (
+    restaurant_id IN (
+      SELECT restaurant_id FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+CREATE POLICY "Admins can delete cancelled transactions" ON transactions
+  FOR DELETE USING (
+    restaurant_id IN (
+      SELECT restaurant_id FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+    AND status = 'cancelled'
+  );
+
 -- Redemptions policies
 CREATE POLICY "Customers can view their redemptions" ON redemptions
   FOR SELECT USING (customer_id = auth.uid());
@@ -239,11 +258,14 @@ CREATE POLICY "Admins can update redemptions" ON redemptions
 CREATE OR REPLACE FUNCTION update_customer_balance()
 RETURNS TRIGGER AS $$
 BEGIN
-  UPDATE profiles
-  SET 
-    points = points + NEW.points_earned,
-    stamps = stamps + NEW.stamps_earned
-  WHERE id = NEW.customer_id;
+  -- Only add points/stamps for active transactions
+  IF NEW.status = 'active' THEN
+    UPDATE profiles
+    SET 
+      points = points + NEW.points_earned,
+      stamps = stamps + NEW.stamps_earned
+    WHERE id = NEW.customer_id;
+  END IF;
   
   RETURN NEW;
 END;
@@ -253,6 +275,28 @@ CREATE TRIGGER after_transaction_insert
   AFTER INSERT ON transactions
   FOR EACH ROW
   EXECUTE FUNCTION update_customer_balance();
+
+-- Function to handle transaction cancellation
+CREATE OR REPLACE FUNCTION handle_transaction_cancellation()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- If transaction is being cancelled, deduct the points/stamps
+  IF NEW.status = 'cancelled' AND OLD.status = 'active' THEN
+    UPDATE profiles
+    SET 
+      points = GREATEST(0, points - OLD.points_earned),
+      stamps = GREATEST(0, stamps - OLD.stamps_earned)
+    WHERE id = OLD.customer_id;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER after_transaction_cancel
+  AFTER UPDATE ON transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_transaction_cancellation();
 
 -- Function to deduct points/stamps after redemption verification
 CREATE OR REPLACE FUNCTION process_redemption()
