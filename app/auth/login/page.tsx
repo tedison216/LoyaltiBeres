@@ -9,74 +9,45 @@ import { Mail, Phone, Lock } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
-  const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [pin, setPin] = useState('')
-  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone')
+  const [email, setEmail] = useState('') // For admin login only
+  const [password, setPassword] = useState('') // For admin login only
+  const [loading, setLoading] = useState(false)
 
   async function handleCustomerLogin() {
-    if (loginMethod === 'phone') {
-      if (!phone || !pin) {
-        toast.error('Please enter your phone number and PIN')
-        return
-      }
+    if (!phone || !pin) {
+      toast.error('Please enter your phone number and PIN')
+      return
+    }
 
-      setLoading(true)
-      try {
-        // First check if customer exists in profiles
-        let profile = null
-        let customerPin = null
-        let restaurantId = null
-
-        const { data: existingProfile } = await supabase
+    setLoading(true)
+    try {
+        // Check if customer exists in profiles
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('phone', phone)
           .eq('role', 'customer')
           .single()
 
-        if (existingProfile) {
-          profile = existingProfile
-          customerPin = existingProfile.pin
-          restaurantId = existingProfile.restaurant_id
-        } else {
-          // Check preregistrations if not in profiles
-          const { data: prereg } = await supabase
-            .from('customer_preregistrations')
-            .select('*')
-            .eq('phone', phone)
-            .is('linked_profile_id', null)
-            .single()
-
-          if (!prereg) {
-            toast.error('Phone number not found. Please contact the restaurant.')
-            setLoading(false)
-            return
-          }
-
-          customerPin = prereg.pin
-          restaurantId = prereg.restaurant_id
+        if (profileError || !profile) {
+          toast.error('Phone number not found. Please contact the restaurant.')
+          setLoading(false)
+          return
         }
 
-        if (customerPin !== pin) {
+        if (profile.pin !== pin) {
           toast.error('Incorrect PIN')
           setLoading(false)
           return
         }
 
-        // Sign in with email (using phone as identifier)
-        const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
-        
-        // Try to sign in
-        const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: generatedEmail,
-          password: pin + phone,
-        })
-
-        if (signInError) {
-          // User doesn't exist in auth, create them
+        // Check if profile has temp ID (starts with 'temp_')
+        if (profile.id.startsWith('temp_')) {
+          // First time login - create auth user and update profile
+          const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
+          
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: generatedEmail,
             password: pin + phone,
@@ -89,93 +60,37 @@ export default function LoginPage() {
 
           if (signUpError) throw signUpError
 
-          console.log('Created auth user:', signUpData.user!.id)
-
-          // Create or update profile
-          if (profile) {
-            // Update existing profile with auth ID
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ id: signUpData.user!.id })
-              .eq('phone', phone)
-            
-            if (updateError) {
-              console.error('Error updating profile:', updateError)
-              throw updateError
-            }
-          } else {
-            // Create new profile from preregistration
-            const { data: prereg } = await supabase
-              .from('customer_preregistrations')
-              .select('*')
-              .eq('phone', phone)
-              .single()
-
-            console.log('Preregistration data:', prereg)
-
-            if (prereg) {
-              const { error: insertError } = await supabase.from('profiles').insert({
-                id: signUpData.user!.id,
-                restaurant_id: restaurantId,
-                role: 'customer',
-                full_name: prereg.full_name,
-                phone: phone,
-                email: prereg.email,
-                pin: pin,
-              })
-
-              if (insertError) {
-                console.error('Error creating profile:', insertError)
-                throw insertError
-              }
-
-              console.log('Profile created successfully')
-
-              // Link preregistration
-              const { error: linkError } = await supabase
-                .from('customer_preregistrations')
-                .update({ linked_profile_id: signUpData.user!.id })
-                .eq('id', prereg.id)
-
-              if (linkError) {
-                console.error('Error linking preregistration:', linkError)
-              }
-            }
+          // Update profile with real auth ID
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ id: signUpData.user!.id })
+            .eq('phone', phone)
+          
+          if (updateError) {
+            console.error('Error updating profile:', updateError)
+            throw updateError
           }
+
+          console.log('Profile updated with auth ID:', signUpData.user!.id)
+        } else {
+          // Returning user - sign in
+          const generatedEmail = `${phone.replace(/\D/g, '')}@customer.local`
+          
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: generatedEmail,
+            password: pin + phone,
+          })
+
+          if (signInError) throw signInError
         }
 
-        toast.success('Login successful!')
-        router.push('/customer')
-      } catch (error: any) {
-        console.error('Login error:', error)
-        toast.error(error.message || 'Login failed')
-      } finally {
-        setLoading(false)
-      }
-    } else {
-      // Email magic link
-      if (!email) {
-        toast.error('Please enter your email')
-        return
-      }
-
-      setLoading(true)
-      try {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        })
-        
-        if (error) throw error
-        
-        toast.success('Check your email for the login link!')
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to send login link')
-      } finally {
-        setLoading(false)
-      }
+      toast.success('Login successful!')
+      router.push('/customer')
+    } catch (error: any) {
+      console.error('Login error:', error)
+      toast.error(error.message || 'Login failed')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -254,99 +169,48 @@ export default function LoginPage() {
         {!isAdmin ? (
           // Customer Login Form
           <div className="space-y-4">
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setLoginMethod('phone')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                  loginMethod === 'phone'
-                    ? 'bg-primary/10 text-primary border-2 border-primary'
-                    : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                Phone + PIN
-              </button>
-              <button
-                onClick={() => setLoginMethod('email')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                  loginMethod === 'email'
-                    ? 'bg-primary/10 text-primary border-2 border-primary'
-                    : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                Email Link
-              </button>
+            <div>
+              <label className="label">Phone Number</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <input
+                  type="tel"
+                  placeholder="8123456789"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input-field pl-10"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Enter without country code (e.g., 8123456789)
+              </p>
             </div>
 
-            {loginMethod === 'phone' ? (
-              <>
-                <div>
-                  <label className="label">Phone Number</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      placeholder="8123456789"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="input-field pl-10"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter without country code (e.g., 8123456789)
-                  </p>
-                </div>
+            <div>
+              <label className="label">PIN</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+                <input
+                  type="password"
+                  placeholder="Enter your 4-digit PIN"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  className="input-field pl-10"
+                  maxLength={4}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Ask the restaurant for your PIN
+              </p>
+            </div>
 
-                <div>
-                  <label className="label">PIN</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                      type="password"
-                      placeholder="Enter your 4-digit PIN"
-                      value={pin}
-                      onChange={(e) => setPin(e.target.value)}
-                      className="input-field pl-10"
-                      maxLength={4}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ask the restaurant for your PIN
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleCustomerLogin}
-                  disabled={loading}
-                  className="btn-primary w-full"
-                >
-                  {loading ? 'Logging in...' : 'Login'}
-                </button>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="label">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="input-field pl-10"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleCustomerLogin}
-                  disabled={loading}
-                  className="btn-primary w-full"
-                >
-                  {loading ? 'Sending...' : 'Send Login Link'}
-                </button>
-              </>
-            )}
+            <button
+              onClick={handleCustomerLogin}
+              disabled={loading}
+              className="btn-primary w-full"
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
           </div>
         ) : (
           // Admin Login Form
