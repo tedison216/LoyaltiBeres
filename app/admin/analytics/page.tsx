@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
@@ -20,12 +20,9 @@ export default function AnalyticsPage() {
   const [totalTransactions, setTotalTransactions] = useState(0)
   const [totalRedemptions, setTotalRedemptions] = useState(0)
 
-  useEffect(() => {
-    loadAnalytics()
-  }, [])
-
-  async function loadAnalytics() {
+  const loadAnalytics = useCallback(async () => {
     try {
+      setLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/auth/login')
@@ -150,7 +147,11 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    loadAnalytics()
+  }, [loadAnalytics])
 
   if (loading) {
     return (

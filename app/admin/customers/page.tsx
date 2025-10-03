@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
@@ -48,13 +48,10 @@ export default function CustomersManagementPage() {
   // CSV import state
   const [importing, setImporting] = useState(false)
 
-  useEffect(() => {
-    loadData()
-  }, [currentPage, searchQuery])
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     console.log('Loading customers data...')
     try {
+      setLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
       console.log('Session:', session)
       
@@ -132,7 +129,11 @@ export default function CustomersManagementPage() {
       console.log('Loading complete, setting loading to false')
       setLoading(false)
     }
-  }
+  }, [currentPage, searchQuery, router])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   async function handleAddCustomer() {
     if (!restaurant || !profile || !newCustomerPhone) {

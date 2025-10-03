@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, ActivityLog } from '@/lib/types/database'
@@ -19,12 +19,9 @@ export default function ActivityLogsPage() {
   const [filterType, setFilterType] = useState<string>('all')
   const ITEMS_PER_PAGE = 20
 
-  useEffect(() => {
-    loadData()
-  }, [currentPage, filterType])
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
+      setLoading(true)
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
@@ -87,7 +84,11 @@ export default function ActivityLogsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, filterType, router])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
