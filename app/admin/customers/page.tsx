@@ -44,30 +44,13 @@ export default function CustomersManagementPage() {
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
-  const [filteredCustomers, setFilteredCustomers] = useState<Profile[]>([])
   
   // CSV import state
   const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     loadData()
-  }, [currentPage])
-  
-  useEffect(() => {
-    // Filter customers based on search query
-    if (searchQuery) {
-      const filtered = customers.filter(customer => {
-        const name = customer.full_name?.toLowerCase() || ''
-        const phone = customer.phone?.toLowerCase() || ''
-        const email = customer.email?.toLowerCase() || ''
-        const query = searchQuery.toLowerCase()
-        return name.includes(query) || phone.includes(query) || email.includes(query)
-      })
-      setFilteredCustomers(filtered)
-    } else {
-      setFilteredCustomers(customers)
-    }
-  }, [searchQuery, customers])
+  }, [currentPage, searchQuery])
 
   async function loadData() {
     console.log('Loading customers data...')
@@ -116,23 +99,23 @@ export default function CustomersManagementPage() {
           setRestaurant(restaurantData)
         }
 
-        // Get total count for pagination
-        const { count } = await supabase
+        // Build query with search filters
+        let query = supabase
           .from('profiles')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count: 'exact' })
           .eq('restaurant_id', profileData.restaurant_id)
           .eq('role', 'customer')
 
-        setTotalCount(count || 0)
+        // Add search filters if search query exists
+        if (searchQuery) {
+          query = query.or(`full_name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
+        }
 
-        // Get paginated data
-        const { data: customersData, error: customersError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('restaurant_id', profileData.restaurant_id)
-          .eq('role', 'customer')
+        const { data: customersData, error: customersError, count } = await query
           .order('created_at', { ascending: false })
           .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
+
+        setTotalCount(count || 0)
 
         if (customersError) {
           console.error('Customers error:', customersError)
@@ -453,6 +436,11 @@ export default function CustomersManagementPage() {
     toast.success('Template downloaded')
   }
 
+  function handleSearchChange(value: string) {
+    setSearchQuery(value)
+    setCurrentPage(1) // Reset to first page when searching
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -522,7 +510,7 @@ export default function CustomersManagementPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search by name, phone, or email..."
             className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900"
           />
@@ -768,13 +756,13 @@ export default function CustomersManagementPage() {
       )}
 
       <div className="px-6 mt-6 space-y-4">
-        {filteredCustomers.length === 0 ? (
+        {customers.length === 0 ? (
           <div className="card text-center py-12">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">{searchQuery ? 'No customers found' : 'No customers yet'}</p>
           </div>
         ) : (
-          filteredCustomers.map((customer) => (
+          customers.map((customer) => (
             <div key={customer.id} className="card">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">

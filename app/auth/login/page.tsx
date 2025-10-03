@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
-import { Mail, Phone, Lock } from 'lucide-react'
+import { Mail, Phone, Lock, ArrowLeft } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -160,10 +160,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-light to-secondary flex items-center justify-center p-4">
       <div className="card max-w-md w-full">
+      <div className="flex items-center gap-3 mb-2">
+        <button
+          onClick={() => router.push('/')}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Back to home"
+        >
+          <ArrowLeft className="h-6 w-6 text-gray-600" />
+        </button>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Irba Steak
           </h1>
-          <p className="text-gray-600">
+          </div>
+          <p className="text-gray-600 mb-6">
             {isAdmin ? 'Admin Login' : 'Loyalty Program'}
           </p>
         {showAdminToggle && (
@@ -195,7 +204,7 @@ export default function LoginPage() {
           // Customer Login Form
           <div className="space-y-4">
             <div>
-              <label className="label">Phone Number</label>
+              <label className="label">Phone Number / Nomor Telepon</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                 <input
@@ -207,7 +216,7 @@ export default function LoginPage() {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Enter without country code (e.g., 8123456789)
+                Enter without country code / Masukkan tanpa kode negara (e.g., 8123456789)
               </p>
             </div>
 
@@ -225,7 +234,7 @@ export default function LoginPage() {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Ask the restaurant for your PIN
+                Ask the restaurant for your PIN / Tanya restoran untuk PIN Anda
               </p>
             </div>
 

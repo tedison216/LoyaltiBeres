@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, Promotion } from '@/lib/types/database'
-import { ArrowLeft, Plus, Edit, Trash2, Upload, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, Plus, Edit, Trash2, Upload, Image as ImageIcon, MessageCircle, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDate } from '@/lib/utils/format'
+import { openWhatsApp } from '@/lib/utils/whatsapp'
 
 export default function PromotionsManagementPage() {
   const router = useRouter()
@@ -17,6 +18,12 @@ export default function PromotionsManagementPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
   const [uploading, setUploading] = useState(false)
+
+  // WhatsApp feature state
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false)
+  const [customers, setCustomers] = useState<Profile[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | null>(null)
 
   // Form state
   const [title, setTitle] = useState('')
@@ -175,6 +182,45 @@ export default function PromotionsManagementPage() {
       console.error('Error saving promotion:', error)
       toast.error(error.message || 'Failed to save promotion')
     }
+  }
+
+  async function loadCustomers() {
+    if (!restaurant) return
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('restaurant_id', restaurant.id)
+      .eq('role', 'customer')
+      .order('full_name')
+    
+    if (error) {
+      console.error('Error loading customers:', error)
+      return
+    }
+    
+    setCustomers(data || [])
+  }
+
+  function openCustomerSearch(promotion: Promotion) {
+    setSelectedPromotion(promotion)
+    setShowCustomerSearch(true)
+    setSearchQuery('')
+    loadCustomers()
+  }
+
+  function handleSendWhatsApp(customer: Profile) {
+    if (!selectedPromotion || !customer.phone) return
+    
+    // Create message with promotion details
+    const message = `Halo ${customer.full_name}, Sahabat Irba Steak! \n\n` +
+      `Kita ada promo baru lho: *${selectedPromotion.title}*\n\n` +
+      `${selectedPromotion.description}\n\n` +
+      `${selectedPromotion.link_url ? `More info: ${selectedPromotion.link_url}` : ''}`
+    
+    openWhatsApp(customer.phone, message)
+    setShowCustomerSearch(false)
+    toast.success(`Opening WhatsApp for ${customer.full_name}`)
   }
 
   async function handleDelete(id: string) {
@@ -395,6 +441,13 @@ export default function PromotionsManagementPage() {
 
               <div className="flex gap-2">
                 <button
+                  onClick={() => openCustomerSearch(promotion)}
+                  className="px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                  title="Send via WhatsApp"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </button>
+                <button
                   onClick={() => handleEdit(promotion)}
                   className="flex-1 btn-secondary"
                 >
@@ -418,6 +471,87 @@ export default function PromotionsManagementPage() {
           ))
         )}
       </div>
+
+      {/* Customer Search Modal */}
+      {showCustomerSearch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold">Send to Customer</h2>
+              <button
+                onClick={() => setShowCustomerSearch(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 border-b border-gray-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search customer..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Customer List */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {customers
+                .filter(c => {
+                  const query = searchQuery.toLowerCase()
+                  return (
+                    c.full_name?.toLowerCase().includes(query) ||
+                    c.phone?.toLowerCase().includes(query) ||
+                    c.email?.toLowerCase().includes(query)
+                  )
+                })
+                .map(customer => (
+                  <button
+                    key={customer.id}
+                    onClick={() => handleSendWhatsApp(customer)}
+                    className="w-full p-3 hover:bg-gray-50 rounded-lg transition-colors text-left mb-2 border border-gray-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold">{customer.full_name}</p>
+                        <p className="text-sm text-gray-600">{customer.phone}</p>
+                      </div>
+                      <MessageCircle className="h-5 w-5 text-green-600" />
+                    </div>
+                  </button>
+                ))}
+              
+              {customers.filter(c => {
+                const query = searchQuery.toLowerCase()
+                return (
+                  c.full_name?.toLowerCase().includes(query) ||
+                  c.phone?.toLowerCase().includes(query)
+                )
+              }).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No customers found
+                </div>
+              )}
+            </div>
+
+            {/* Promotion Preview */}
+            {selectedPromotion && (
+              <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <p className="text-xs text-gray-600 mb-1">Sending promotion:</p>
+                <p className="font-semibold text-sm">{selectedPromotion.title}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
