@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [allowMultipleStamps, setAllowMultipleStamps] = useState(false)
   const [pointsRatioAmount, setPointsRatioAmount] = useState(10000)
   const [pointsRatioPoints, setPointsRatioPoints] = useState(1)
+  const [maxRedemptionsPerDay, setMaxRedemptionsPerDay] = useState(3)
 
   useEffect(() => {
     loadData()
@@ -73,6 +74,7 @@ export default function SettingsPage() {
           setAllowMultipleStamps(restaurantData.allow_multiple_stamps_per_day)
           setPointsRatioAmount(restaurantData.points_ratio_amount)
           setPointsRatioPoints(restaurantData.points_ratio_points)
+          setMaxRedemptionsPerDay(restaurantData.max_redemptions_per_day || 3)
         }
       }
     } catch (error) {
@@ -138,6 +140,7 @@ export default function SettingsPage() {
           allow_multiple_stamps_per_day: allowMultipleStamps,
           points_ratio_amount: pointsRatioAmount,
           points_ratio_points: pointsRatioPoints,
+          max_redemptions_per_day: maxRedemptionsPerDay,
         })
         .eq('id', restaurant.id)
 
@@ -365,6 +368,26 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Fraud Prevention */}
+        <div className="card">
+          <h2 className="text-lg font-semibold mb-4">Fraud Prevention</h2>
+          
+          <div>
+            <label className="label">Max Redemptions Per Day</label>
+            <input
+              type="number"
+              value={maxRedemptionsPerDay}
+              onChange={(e) => setMaxRedemptionsPerDay(Number(e.target.value))}
+              className="input-field"
+              min="1"
+              max="10"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Maximum number of rewards a customer can redeem per day. This helps prevent fraud and abuse.
+            </p>
+          </div>
         </div>
 
         {/* Save Button */}

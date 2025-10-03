@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
-import { Settings, Gift, Image as ImageIcon, Users, LogOut, TrendingUp, Award } from 'lucide-react'
+import { Settings, Gift, Image as ImageIcon, Users, LogOut, TrendingUp, Award, Database, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
+import { LanguageToggle } from '@/components/LanguageToggle'
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -118,12 +120,15 @@ export default function AdminDashboardPage() {
             <h1 className="text-2xl font-bold mb-1">{restaurant?.name || 'Restaurant'}</h1>
             <p className="text-sm opacity-90">Admin Dashboard</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -189,6 +194,27 @@ export default function AdminDashboardPage() {
                 {stats.pendingRedemptions}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => router.push('/admin/analytics')}
+            className="card hover:shadow-lg transition-shadow flex flex-col items-center justify-center py-8"
+          >
+            <TrendingUp className="h-10 w-10 text-purple-600 mb-3" />
+            <span className="font-semibold">Analytics</span>
+          </button>
+          <button
+            onClick={() => router.push('/admin/activity-logs')}
+            className="card hover:shadow-lg transition-shadow flex flex-col items-center justify-center py-8"
+          >
+            <FileText className="h-10 w-10 text-orange-600 mb-3" />
+            <span className="font-semibold">Activity Logs</span>
+          </button>
+          <button
+            onClick={() => router.push('/admin/data-management')}
+            className="card hover:shadow-lg transition-shadow flex flex-col items-center justify-center py-8"
+          >
+            <Database className="h-10 w-10 text-blue-600 mb-3" />
+            <span className="font-semibold">Data Management</span>
           </button>
         </div>
       </div>

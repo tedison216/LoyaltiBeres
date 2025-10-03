@@ -4,11 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
-import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight, Edit, Trash2, Coins } from 'lucide-react'
+import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight, Edit, Trash2, Coins, Search, Download, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { exportToCSV, formatCustomersForCSV, parseCSVToCustomers } from '@/lib/utils/csv-export'
+import { logActivity } from '@/lib/utils/activity-log'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 export default function CustomersManagementPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [customers, setCustomers] = useState<Profile[]>([])
@@ -37,10 +41,33 @@ export default function CustomersManagementPage() {
   const [pointsAdjustment, setPointsAdjustment] = useState('')
   const [adjustmentReason, setAdjustmentReason] = useState<'add' | 'subtract'>('add')
   const [adjusting, setAdjusting] = useState(false)
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredCustomers, setFilteredCustomers] = useState<Profile[]>([])
+  
+  // CSV import state
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [currentPage])
+  
+  useEffect(() => {
+    // Filter customers based on search query
+    if (searchQuery) {
+      const filtered = customers.filter(customer => {
+        const name = customer.full_name?.toLowerCase() || ''
+        const phone = customer.phone?.toLowerCase() || ''
+        const email = customer.email?.toLowerCase() || ''
+        const query = searchQuery.toLowerCase()
+        return name.includes(query) || phone.includes(query) || email.includes(query)
+      })
+      setFilteredCustomers(filtered)
+    } else {
+      setFilteredCustomers(customers)
+    }
+  }, [searchQuery, customers])
 
   async function loadData() {
     console.log('Loading customers data...')
@@ -226,7 +253,7 @@ export default function CustomersManagementPage() {
   }
 
   async function handleAdjustPoints() {
-    if (!adjustingCustomer || !restaurant) return
+    if (!adjustingCustomer || !restaurant || !profile) return
 
     const amount = parseInt(pointsAdjustment)
     if (isNaN(amount) || amount <= 0) {
@@ -257,6 +284,22 @@ export default function CustomersManagementPage() {
 
       if (error) throw error
 
+      // Log the activity
+      await logActivity(
+        restaurant.id,
+        profile.id,
+        'points_adjustment',
+        'customer',
+        adjustingCustomer.id,
+        {
+          type: isStampMode ? 'stamps' : 'points',
+          action: adjustmentReason,
+          amount: amount,
+          old_value: currentValue,
+          new_value: newValue,
+        }
+      )
+
       toast.success(`${isStampMode ? 'Stamps' : 'Points'} adjusted successfully`)
       setShowAdjustPoints(false)
       setAdjustingCustomer(null)
@@ -282,12 +325,132 @@ export default function CustomersManagementPage() {
 
       if (error) throw error
 
+      // Log the activity
+      if (restaurant && profile) {
+        await logActivity(
+          restaurant.id,
+          profile.id,
+          'customer_deleted',
+          'customer',
+          customer.id,
+          {
+            customer_name: customer.full_name,
+            customer_phone: customer.phone,
+            points: customer.points,
+            stamps: customer.stamps,
+          }
+        )
+      }
+
       toast.success('Customer deleted successfully')
       loadData()
     } catch (error: any) {
       console.error('Error deleting customer:', error)
       toast.error(error.message || 'Failed to delete customer')
     }
+  }
+  
+  async function handleExportCSV() {
+    try {
+      const formattedData = formatCustomersForCSV(customers)
+      exportToCSV(formattedData, 'customers')
+      toast.success(`Exported ${customers.length} customers`)
+    } catch (error: any) {
+      console.error('Error exporting CSV:', error)
+      toast.error(error.message || 'Failed to export CSV')
+    }
+  }
+  
+  async function handleImportCSV(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file || !restaurant || !profile) return
+
+    setImporting(true)
+    try {
+      const text = await file.text()
+      const customersData = parseCSVToCustomers(text)
+      
+      if (customersData.length === 0) {
+        toast.error('No valid customer data found in CSV')
+        return
+      }
+
+      let successCount = 0
+      let errorCount = 0
+
+      for (const customerData of customersData) {
+        try {
+          const tempId = crypto.randomUUID()
+          const customerPin = Math.floor(1000 + Math.random() * 9000).toString()
+
+          const { error } = await supabase.from('profiles').insert({
+            id: tempId,
+            restaurant_id: restaurant.id,
+            role: 'customer',
+            full_name: customerData.full_name || '',
+            phone: customerData.phone || '',
+            email: customerData.email || null,
+            points: customerData.points || 0,
+            stamps: customerData.stamps || 0,
+            pin: customerPin,
+            is_temp: true,
+          })
+
+          if (error) {
+            console.error('Error importing customer:', error)
+            errorCount++
+          } else {
+            successCount++
+          }
+        } catch (err) {
+          errorCount++
+        }
+      }
+
+      // Log the activity
+      await logActivity(
+        restaurant.id,
+        profile.id,
+        'csv_import',
+        'customer',
+        undefined,
+        {
+          total: customersData.length,
+          success: successCount,
+          errors: errorCount,
+        }
+      )
+
+      toast.success(`Imported ${successCount} customers. ${errorCount > 0 ? `${errorCount} failed.` : ''}`)
+      loadData()
+      
+      // Reset file input
+      event.target.value = ''
+    } catch (error: any) {
+      console.error('Error importing CSV:', error)
+      toast.error(error.message || 'Failed to import CSV')
+    } finally {
+      setImporting(false)
+    }
+  }
+  
+  function downloadCSVTemplate() {
+    const template = [
+      ['full_name', 'phone', 'email', 'pin'],
+      ['John Doe', '8123456789', 'john@example.com', '1234'],
+      ['Jane Smith', '8198765432', '', ''],
+      ['Bob Wilson', '8187654321', 'bob@example.com', ''],
+    ]
+    
+    const csvContent = template.map(row => row.join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'customer_import_template.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Template downloaded')
   }
 
   if (loading) {
@@ -301,7 +464,7 @@ export default function CustomersManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-gradient-to-r from-primary to-secondary text-white p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
@@ -312,17 +475,57 @@ export default function CustomersManagementPage() {
             <div>
               <h1 className="text-2xl font-bold">Customers</h1>
               <p className="text-sm opacity-90">
-                {customers.length} total members
+                {totalCount} total members
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="bg-white text-primary px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
-          >
-            <Plus className="h-5 w-5" />
-            Add
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={downloadCSVTemplate}
+              className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              title="Download CSV Template"
+            >
+              <Download className="h-5 w-5" />
+              <span className="text-xs">Template</span>
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              title="Export to CSV"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+            <label className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 cursor-pointer"
+              title="Import from CSV">
+              <Upload className="h-5 w-5" />
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+                disabled={importing}
+              />
+            </label>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="bg-white text-primary px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Add
+            </button>
+          </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, phone, or email..."
+            className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900"
+          />
         </div>
       </div>
 
@@ -565,13 +768,13 @@ export default function CustomersManagementPage() {
       )}
 
       <div className="px-6 mt-6 space-y-4">
-        {customers.length === 0 ? (
+        {filteredCustomers.length === 0 ? (
           <div className="card text-center py-12">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No customers yet</p>
+            <p className="text-gray-500">{searchQuery ? 'No customers found' : 'No customers yet'}</p>
           </div>
         ) : (
-          customers.map((customer) => (
+          filteredCustomers.map((customer) => (
             <div key={customer.id} className="card">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">

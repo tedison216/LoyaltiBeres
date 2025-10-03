@@ -14,6 +14,8 @@ export default function RewardsPage() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [rewards, setRewards] = useState<Reward[]>([])
   const [loading, setLoading] = useState(true)
+  const [todayRedemptions, setTodayRedemptions] = useState(0)
+  const [maxRedemptions, setMaxRedemptions] = useState(3)
 
   useEffect(() => {
     loadData()
@@ -52,6 +54,7 @@ export default function RewardsPage() {
 
         if (restaurantData) {
           setRestaurant(restaurantData)
+          setMaxRedemptions(restaurantData.max_redemptions_per_day || 3)
         }
 
         // Load rewards
@@ -66,6 +69,18 @@ export default function RewardsPage() {
         if (rewardsData) {
           setRewards(rewardsData)
         }
+
+        // Check today's redemptions
+        const today = new Date().toISOString().split('T')[0]
+        const { data: redemptionsData } = await supabase
+          .from('redemptions')
+          .select('*')
+          .eq('customer_id', profileData.id)
+          .eq('restaurant_id', profileData.restaurant_id)
+          .gte('created_at', today)
+          .in('status', ['pending', 'verified'])
+
+        setTodayRedemptions(redemptionsData?.length || 0)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -77,6 +92,12 @@ export default function RewardsPage() {
 
   async function handleRedeem(reward: Reward) {
     if (!profile || !restaurant) return
+
+    // Check redemption limit
+    if (todayRedemptions >= maxRedemptions) {
+      toast.error(`You have reached the maximum redemptions for today (${maxRedemptions})`)
+      return
+    }
 
     const isStampMode = restaurant.loyalty_mode === 'stamps'
     const requiredAmount = isStampMode ? reward.required_stamps : reward.required_points
@@ -162,8 +183,34 @@ export default function RewardsPage() {
         </div>
       </div>
 
+      {/* Redemption Limit Warning */}
+      <div className="px-6 mt-6">
+        {todayRedemptions >= maxRedemptions && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-800 font-semibold">
+              ⚠️ Daily Limit Reached
+            </p>
+            <p className="text-xs text-red-700 mt-1">
+              You have reached the maximum redemptions for today ({maxRedemptions}).
+              Please try again tomorrow.
+            </p>
+          </div>
+        )}
+
+        {todayRedemptions > 0 && todayRedemptions < maxRedemptions && maxRedemptions - todayRedemptions <= 2 && (
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-yellow-800 font-semibold">
+              ⚡ {maxRedemptions - todayRedemptions} Redemption{maxRedemptions - todayRedemptions > 1 ? 's' : ''} Remaining Today
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+              You can redeem {maxRedemptions - todayRedemptions} more reward{maxRedemptions - todayRedemptions > 1 ? 's' : ''} today.
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Rewards List */}
-      <div className="px-6 mt-6 space-y-4">
+      <div className="px-6 space-y-4">
         {rewards.length === 0 ? (
           <div className="card text-center py-12">
             <Gift className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -204,14 +251,18 @@ export default function RewardsPage() {
 
                 <button
                   onClick={() => handleRedeem(reward)}
-                  disabled={!canRedeemReward}
+                  disabled={!canRedeemReward || todayRedemptions >= maxRedemptions}
                   className={`w-full py-3 rounded-lg font-semibold transition-colors ${
-                    canRedeemReward
+                    canRedeemReward && todayRedemptions < maxRedemptions
                       ? 'bg-primary text-white hover:bg-primary-dark'
                       : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  {canRedeemReward ? 'Redeem Now' : 'Insufficient Balance'}
+                  {todayRedemptions >= maxRedemptions 
+                    ? 'Daily Limit Reached' 
+                    : canRedeemReward 
+                      ? 'Redeem Now' 
+                      : 'Insufficient Balance'}
                 </button>
               </div>
             )

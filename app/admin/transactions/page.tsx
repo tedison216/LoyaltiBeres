@@ -7,6 +7,7 @@ import { Profile, Restaurant, Transaction } from '@/lib/types/database'
 import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
+import { logActivity } from '@/lib/utils/activity-log'
 
 type TabType = 'today' | 'older' | 'cancelled'
 
@@ -166,6 +167,9 @@ export default function TransactionsManagementPage() {
     }
 
     try {
+      // Get transaction details before cancelling
+      const transaction = transactions.find(t => t.id === transactionId)
+      
       // Update transaction status to cancelled (trigger will handle points/stamps deduction)
       const { error } = await supabase
         .from('transactions')
@@ -173,6 +177,23 @@ export default function TransactionsManagementPage() {
         .eq('id', transactionId)
 
       if (error) throw error
+
+      // Log the activity
+      if (restaurant && profile && transaction) {
+        await logActivity(
+          restaurant.id,
+          profile.id,
+          'transaction_cancelled',
+          'transaction',
+          transactionId,
+          {
+            customer_id: (transaction as any).customer_id,
+            amount: transaction.amount,
+            points_earned: transaction.points_earned,
+            stamps_earned: transaction.stamps_earned,
+          }
+        )
+      }
 
       toast.success('Transaction cancelled successfully')
       loadData()
@@ -188,12 +209,30 @@ export default function TransactionsManagementPage() {
     }
 
     try {
+      // Get transaction details before deleting
+      const transaction = transactions.find(t => t.id === transactionId)
+      
       const { error } = await supabase
         .from('transactions')
         .delete()
         .eq('id', transactionId)
 
       if (error) throw error
+
+      // Log the activity
+      if (restaurant && profile && transaction) {
+        await logActivity(
+          restaurant.id,
+          profile.id,
+          'transaction_deleted',
+          'transaction',
+          transactionId,
+          {
+            amount: transaction.amount,
+            status: 'cancelled',
+          }
+        )
+      }
 
       toast.success('Transaction deleted successfully')
       loadData()

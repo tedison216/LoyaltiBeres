@@ -16,6 +16,7 @@ export interface Restaurant {
   allow_multiple_stamps_per_day: boolean
   points_ratio_amount: number
   points_ratio_points: number
+  max_redemptions_per_day: number
   created_at: string
   updated_at: string
 }
@@ -83,5 +84,16 @@ export interface Redemption {
   status: RedemptionStatus
   verified_at: string | null
   verified_by: string | null
+  created_at: string
+}
+
+export interface ActivityLog {
+  id: string
+  restaurant_id: string
+  performed_by: string
+  action_type: string
+  target_type: string | null
+  target_id: string | null
+  details: Record<string, any> | null
   created_at: string
 }

@@ -1,19 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { Mail, Phone, Lock } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isAdmin, setIsAdmin] = useState(false)
+  const [showAdminToggle, setShowAdminToggle] = useState(false)
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('')
   const [email, setEmail] = useState('') // For admin login only
   const [password, setPassword] = useState('') // For admin login only
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    // Check if coming from admin link
+    const role = searchParams.get('role')
+    if (role === 'admin') {
+      setIsAdmin(true)
+      setShowAdminToggle(true)
+    }
+  }, [searchParams])
 
   async function handleCustomerLogin() {
     if (!phone || !pin) {
@@ -149,37 +160,36 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-light to-secondary flex items-center justify-center p-4">
       <div className="card max-w-md w-full">
-        <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Irba Steak
           </h1>
           <p className="text-gray-600">
             {isAdmin ? 'Admin Login' : 'Loyalty Program'}
           </p>
-        </div>
-
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setIsAdmin(false)}
-            className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-              !isAdmin
-                ? 'bg-primary text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            Customer
-          </button>
-          <button
-            onClick={() => setIsAdmin(true)}
-            className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-              isAdmin
-                ? 'bg-primary text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            Admin
-          </button>
-        </div>
+        {showAdminToggle && (
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setIsAdmin(false)}
+              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                !isAdmin
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              Customer
+            </button>
+            <button
+              onClick={() => setIsAdmin(true)}
+              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                isAdmin
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              Admin
+            </button>
+          </div>
+        )}
 
         {!isAdmin ? (
           // Customer Login Form

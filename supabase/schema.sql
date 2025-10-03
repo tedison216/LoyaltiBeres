@@ -15,6 +15,7 @@ CREATE TABLE restaurants (
   allow_multiple_stamps_per_day BOOLEAN DEFAULT false,
   points_ratio_amount DECIMAL(10, 2) DEFAULT 10000, -- e.g., Rp.10,000 = 1 point
   points_ratio_points INTEGER DEFAULT 1,
+  max_redemptions_per_day INTEGER DEFAULT 3, -- Fraud prevention: max redemptions per customer per day
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -90,6 +91,18 @@ CREATE TABLE redemptions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create activity_logs table for audit trail
+CREATE TABLE activity_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE NOT NULL,
+  performed_by UUID REFERENCES profiles(id) ON DELETE SET NULL NOT NULL,
+  action_type TEXT NOT NULL, -- 'points_adjustment', 'transaction_cancelled', 'customer_deleted', etc.
+  target_type TEXT, -- 'customer', 'transaction', 'redemption'
+  target_id UUID,
+  details JSONB, -- Store additional context
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_profiles_restaurant ON profiles(restaurant_id);
 CREATE INDEX idx_profiles_role ON profiles(role);
@@ -103,6 +116,10 @@ CREATE INDEX idx_transactions_status ON transactions(status);
 CREATE INDEX idx_redemptions_customer ON redemptions(customer_id);
 CREATE INDEX idx_redemptions_restaurant ON redemptions(restaurant_id);
 CREATE INDEX idx_redemptions_status ON redemptions(status);
+CREATE INDEX idx_activity_logs_restaurant ON activity_logs(restaurant_id);
+CREATE INDEX idx_activity_logs_performed_by ON activity_logs(performed_by);
+CREATE INDEX idx_activity_logs_action_type ON activity_logs(action_type);
+CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -135,6 +152,7 @@ ALTER TABLE rewards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE promotions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- Restaurants policies
 CREATE POLICY "Public can view restaurants" ON restaurants
@@ -256,6 +274,23 @@ CREATE POLICY "Admins can view restaurant redemptions" ON redemptions
 
 CREATE POLICY "Admins can update redemptions" ON redemptions
   FOR UPDATE USING (
+    restaurant_id IN (
+      SELECT restaurant_id FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- Activity Logs policies
+CREATE POLICY "Admins can view restaurant activity logs" ON activity_logs
+  FOR SELECT USING (
+    restaurant_id IN (
+      SELECT restaurant_id FROM profiles 
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+CREATE POLICY "Admins can create activity logs" ON activity_logs
+  FOR INSERT WITH CHECK (
     restaurant_id IN (
       SELECT restaurant_id FROM profiles 
       WHERE id = auth.uid() AND role = 'admin'
