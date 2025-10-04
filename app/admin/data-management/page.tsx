@@ -4,10 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
-import { ArrowLeft, Download, Trash2, Database, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Download, Trash2, Database, AlertTriangle, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { exportToCSV, formatCustomersForCSV, formatTransactionsForCSV, formatRedemptionsForCSV } from '@/lib/utils/csv-export'
+import { exportCustomersToPDF, exportTransactionsToPDF, exportRedemptionsToPDF, type PDFMetadataItem } from '@/lib/utils/pdf-export'
+import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { logActivity } from '@/lib/utils/activity-log'
+
+type TransactionStatusFilter = 'all' | 'active' | 'completed' | 'pending' | 'cancelled'
+type RedemptionStatusFilter = 'all' | 'verified' | 'pending' | 'cancelled'
 
 export default function DataManagementPage() {
   const router = useRouter()
@@ -16,7 +21,153 @@ export default function DataManagementPage() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState<TransactionStatusFilter>('all')
+  const [redemptionStatusFilter, setRedemptionStatusFilter] = useState<RedemptionStatusFilter>('all')
+  const [transactionStartDate, setTransactionStartDate] = useState('')
+  const [transactionEndDate, setTransactionEndDate] = useState('')
+  const [redemptionStartDate, setRedemptionStartDate] = useState('')
+  const [redemptionEndDate, setRedemptionEndDate] = useState('')
+
+  const transactionStatusOptions: { value: TransactionStatusFilter; label: string }[] = [
+    { value: 'all', label: 'All statuses' },
+    { value: 'active', label: 'Active (Pending & Completed)' },
+    { value: 'completed', label: 'Completed only' },
+    { value: 'pending', label: 'Pending only' },
+    { value: 'cancelled', label: 'Cancelled only' },
+  ]
+
+  const redemptionStatusOptions: { value: RedemptionStatusFilter; label: string }[] = [
+    { value: 'all', label: 'All statuses' },
+    { value: 'verified', label: 'Verified only' },
+    { value: 'pending', label: 'Pending only' },
+    { value: 'cancelled', label: 'Cancelled only' },
+  ]
+
+  const getTransactionStatusLabel = (value: TransactionStatusFilter = transactionStatusFilter) =>
+    transactionStatusOptions.find(option => option.value === value)?.label ?? 'All statuses'
+
+  const getRedemptionStatusLabel = (value: RedemptionStatusFilter = redemptionStatusFilter) =>
+    redemptionStatusOptions.find(option => option.value === value)?.label ?? 'All statuses'
+
+  const getDateRangeLabel = (start: string, end: string) => {
+    if (start && end) {
+      if (start === end) return formatDate(start)
+      return `${formatDate(start)} – ${formatDate(end)}`
+    }
+    if (start) return `From ${formatDate(start)}`
+    if (end) return `Until ${formatDate(end)}`
+    return 'All time'
+  }
+
+  const startOfDay = (date: string) => `${date}T00:00:00`
+  const endOfDay = (date: string) => `${date}T23:59:59`
+
+  const isInvalidDateRange = (start: string, end: string) => {
+    if (!start || !end) return false
+    return new Date(start) > new Date(end)
+  }
+
+  const resetTransactionFilters = () => {
+    setTransactionStatusFilter('all')
+    setTransactionStartDate('')
+    setTransactionEndDate('')
+  }
+
+  const resetRedemptionFilters = () => {
+    setRedemptionStatusFilter('all')
+    setRedemptionStartDate('')
+    setRedemptionEndDate('')
+  }
+
+  const applyTransactionFilters = (query: any) => {
+    if (transactionStatusFilter === 'active') {
+      query = query.neq('status', 'cancelled')
+    } else if (transactionStatusFilter === 'completed') {
+      query = query.eq('status', 'completed')
+    } else if (transactionStatusFilter === 'pending') {
+      query = query.eq('status', 'pending')
+    } else if (transactionStatusFilter === 'cancelled') {
+      query = query.eq('status', 'cancelled')
+    }
+
+    if (transactionStartDate) {
+      query = query.gte('created_at', startOfDay(transactionStartDate))
+    }
+    if (transactionEndDate) {
+      query = query.lte('created_at', endOfDay(transactionEndDate))
+    }
+
+    return query
+  }
+
+  const applyRedemptionFilters = (query: any) => {
+    if (redemptionStatusFilter === 'verified') {
+      query = query.eq('status', 'verified')
+    } else if (redemptionStatusFilter === 'pending') {
+      query = query.eq('status', 'pending')
+    } else if (redemptionStatusFilter === 'cancelled') {
+      query = query.eq('status', 'cancelled')
+    }
+
+    if (redemptionStartDate) {
+      query = query.gte('created_at', startOfDay(redemptionStartDate))
+    }
+    if (redemptionEndDate) {
+      query = query.lte('created_at', endOfDay(redemptionEndDate))
+    }
+
+    return query
+  }
+
+  async function fetchTransactionsForExport() {
+    if (!restaurant) {
+      return { data: [], count: 0 }
+    }
+
+    let query = supabase
+      .from('transactions')
+      .select(`
+        *,
+        customer:profiles!transactions_customer_id_fkey(full_name, phone, email)
+      `, { count: 'exact' })
+      .eq('restaurant_id', restaurant.id)
+      .order('created_at', { ascending: false })
+
+    query = applyTransactionFilters(query)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    return { data: data ?? [], count: count ?? (data?.length ?? 0) }
+  }
+
+  async function fetchRedemptionsForExport() {
+    if (!restaurant) {
+      return { data: [], count: 0 }
+    }
+
+    let query = supabase
+      .from('redemptions')
+      .select(`
+        *,
+        customer:profiles!redemptions_customer_id_fkey(full_name, phone, email)
+      `, { count: 'exact' })
+      .eq('restaurant_id', restaurant.id)
+      .order('created_at', { ascending: false })
+
+    query = applyRedemptionFilters(query)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    return { data: data ?? [], count: count ?? (data?.length ?? 0) }
+  }
+
+  const transactionFiltersActive =
+    transactionStatusFilter !== 'all' || Boolean(transactionStartDate) || Boolean(transactionEndDate)
+  const redemptionFiltersActive =
+    redemptionStatusFilter !== 'all' || Boolean(redemptionStartDate) || Boolean(redemptionEndDate)
+
   // Mass delete state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteType, setDeleteType] = useState<'transactions' | 'redemptions' | 'all'>('transactions')
@@ -71,6 +222,116 @@ export default function DataManagementPage() {
     }
   }
 
+  async function handleExportCustomersPDF() {
+    if (!restaurant) return
+
+    setExporting(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('restaurant_id', restaurant.id)
+        .eq('role', 'customer')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      exportCustomersToPDF(data || [], restaurant.name)
+      toast.success(`Generated PDF for ${data?.length || 0} customers`)
+    } catch (error: any) {
+      console.error('Error generating customers PDF:', error)
+      toast.error(error.message || 'Failed to generate customers PDF')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleExportTransactionsPDF() {
+    if (!restaurant) return
+
+    if (isInvalidDateRange(transactionStartDate, transactionEndDate)) {
+      toast.error('Invalid transaction date range')
+      return
+    }
+
+    setExporting(true)
+    try {
+      const { data, count } = await fetchTransactionsForExport()
+
+      if (!data.length) {
+        toast.error('No transactions found for the selected filters')
+        return
+      }
+
+      const totalAmount = data.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
+      const totalPoints = data.reduce((sum: number, item: any) => sum + (item.points_earned || 0), 0)
+      const totalStamps = data.reduce((sum: number, item: any) => sum + (item.stamps_earned || 0), 0)
+
+      const metadata: PDFMetadataItem[] = [
+        { label: 'Restaurant', value: restaurant.name || 'N/A' },
+        { label: 'Status Filter', value: getTransactionStatusLabel() },
+        { label: 'Date Range', value: getDateRangeLabel(transactionStartDate, transactionEndDate) },
+      ]
+
+      const summary: PDFMetadataItem[] = [
+        { label: 'Total Records', value: String(count || data.length) },
+        { label: 'Total Amount', value: formatCurrency(totalAmount) },
+        { label: 'Total Points Earned', value: String(totalPoints) },
+        { label: 'Total Stamps Earned', value: String(totalStamps) },
+      ]
+
+      exportTransactionsToPDF(data, restaurant.name, metadata, summary)
+      toast.success(`Generated PDF for ${count || data.length} transactions`)
+    } catch (error: any) {
+      console.error('Error generating transactions PDF:', error)
+      toast.error(error.message || 'Failed to generate transactions PDF')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleExportRedemptionsPDF() {
+    if (!restaurant) return
+
+    if (isInvalidDateRange(redemptionStartDate, redemptionEndDate)) {
+      toast.error('Invalid redemption date range')
+      return
+    }
+
+    setExporting(true)
+    try {
+      const { data, count } = await fetchRedemptionsForExport()
+
+      if (!data.length) {
+        toast.error('No redemptions found for the selected filters')
+        return
+      }
+
+      const totalPointsUsed = data.reduce((sum: number, item: any) => sum + (item.points_used || 0), 0)
+      const totalStampsUsed = data.reduce((sum: number, item: any) => sum + (item.stamps_used || 0), 0)
+
+      const metadata: PDFMetadataItem[] = [
+        { label: 'Restaurant', value: restaurant.name || 'N/A' },
+        { label: 'Status Filter', value: getRedemptionStatusLabel() },
+        { label: 'Date Range', value: getDateRangeLabel(redemptionStartDate, redemptionEndDate) },
+      ]
+
+      const summary: PDFMetadataItem[] = [
+        { label: 'Total Records', value: String(count || data.length) },
+        { label: 'Total Points Redeemed', value: String(totalPointsUsed) },
+        { label: 'Total Stamps Redeemed', value: String(totalStampsUsed) },
+      ]
+
+      exportRedemptionsToPDF(data, restaurant.name, metadata, summary)
+      toast.success(`Generated PDF for ${count || data.length} redemptions`)
+    } catch (error: any) {
+      console.error('Error generating redemptions PDF:', error)
+      toast.error(error.message || 'Failed to generate redemptions PDF')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   async function handleExportCustomers() {
     if (!restaurant) return
     
@@ -98,23 +359,24 @@ export default function DataManagementPage() {
 
   async function handleExportTransactions() {
     if (!restaurant) return
-    
+
+    if (isInvalidDateRange(transactionStartDate, transactionEndDate)) {
+      toast.error('Invalid transaction date range')
+      return
+    }
+
     setExporting(true)
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          customer:profiles!transactions_customer_id_fkey(full_name, phone, email)
-        `)
-        .eq('restaurant_id', restaurant.id)
-        .order('created_at', { ascending: false })
+      const { data, count } = await fetchTransactionsForExport()
 
-      if (error) throw error
+      if (!data.length) {
+        toast.error('No transactions found for the selected filters')
+        return
+      }
 
-      const formattedData = formatTransactionsForCSV(data || [])
+      const formattedData = formatTransactionsForCSV(data)
       exportToCSV(formattedData, 'transactions')
-      toast.success(`Exported ${data?.length || 0} transactions`)
+      toast.success(`Exported ${count || data.length} transactions`)
     } catch (error: any) {
       console.error('Error exporting transactions:', error)
       toast.error(error.message || 'Failed to export transactions')
@@ -125,23 +387,24 @@ export default function DataManagementPage() {
 
   async function handleExportRedemptions() {
     if (!restaurant) return
-    
+
+    if (isInvalidDateRange(redemptionStartDate, redemptionEndDate)) {
+      toast.error('Invalid redemption date range')
+      return
+    }
+
     setExporting(true)
     try {
-      const { data, error } = await supabase
-        .from('redemptions')
-        .select(`
-          *,
-          customer:profiles!redemptions_customer_id_fkey(full_name, phone, email)
-        `)
-        .eq('restaurant_id', restaurant.id)
-        .order('created_at', { ascending: false })
+      const { data, count } = await fetchRedemptionsForExport()
 
-      if (error) throw error
+      if (!data.length) {
+        toast.error('No redemptions found for the selected filters')
+        return
+      }
 
-      const formattedData = formatRedemptionsForCSV(data || [])
+      const formattedData = formatRedemptionsForCSV(data)
       exportToCSV(formattedData, 'redemptions')
-      toast.success(`Exported ${data?.length || 0} redemptions`)
+      toast.success(`Exported ${count || data.length} redemptions`)
     } catch (error: any) {
       console.error('Error exporting redemptions:', error)
       toast.error(error.message || 'Failed to export redemptions')
@@ -272,54 +535,223 @@ export default function DataManagementPage() {
             <h2 className="text-xl font-bold">Export Data</h2>
           </div>
           <p className="text-sm text-gray-600 mb-4">
-            Download your data as CSV files for backup or analysis
+            Generate CSV spreadsheets or polished PDF reports for backup, analysis, and sharing
           </p>
 
-          <div className="space-y-3">
-            <button
-              onClick={handleExportCustomers}
-              disabled={exporting}
-              className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-            >
+          <div className="space-y-4">
+            <div className="space-y-2 bg-blue-50 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-blue-600" />
                 <div className="text-left">
-                  <p className="font-semibold text-blue-900">Export Customers</p>
-                  <p className="text-xs text-blue-700">All customer profiles and balances</p>
+                  <p className="font-semibold text-blue-900">Customers</p>
+                  <p className="text-xs text-blue-700">Export all customer profiles and balances</p>
                 </div>
               </div>
-              <Download className="h-5 w-5 text-blue-600" />
-            </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                <button
+                  onClick={handleExportCustomers}
+                  disabled={exporting}
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-60"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
+                <button
+                  onClick={handleExportCustomersPDF}
+                  disabled={exporting}
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold transition-colors disabled:opacity-60"
+                >
+                  <FileText className="h-4 w-4" />
+                  Generate PDF
+                </button>
+              </div>
+            </div>
 
-            <button
-              onClick={handleExportTransactions}
-              disabled={exporting}
-              className="w-full flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-            >
+            <div className="space-y-3 bg-green-50 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-green-600" />
                 <div className="text-left">
-                  <p className="font-semibold text-green-900">Export Transactions</p>
-                  <p className="text-xs text-green-700">All transaction history</p>
+                  <p className="font-semibold text-green-900">Transactions</p>
+                  <p className="text-xs text-green-700">Export transaction history with custom filters</p>
                 </div>
               </div>
-              <Download className="h-5 w-5 text-green-600" />
-            </button>
 
-            <button
-              onClick={handleExportRedemptions}
-              disabled={exporting}
-              className="w-full flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-            >
+              <div className="bg-white/70 border border-green-100 rounded-lg p-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-green-900">
+                  <span className="font-semibold uppercase tracking-wide text-green-700">Filters</span>
+                  <span>{getTransactionStatusLabel()}</span>
+                  <span>•</span>
+                  <span>{getDateRangeLabel(transactionStartDate, transactionEndDate)}</span>
+                  <button
+                    type="button"
+                    onClick={resetTransactionFilters}
+                    disabled={!transactionFiltersActive || exporting}
+                    className="ml-auto px-2 py-1 rounded-md bg-green-100 hover:bg-green-200 text-green-800 font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex flex-col text-xs font-medium text-green-800">
+                    Status
+                    <select
+                      value={transactionStatusFilter}
+                      onChange={(e) => setTransactionStatusFilter(e.target.value as TransactionStatusFilter)}
+                      disabled={exporting}
+                      className="mt-1 input-field text-sm"
+                    >
+                      {transactionStatusOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="flex flex-col text-xs font-medium text-green-800">
+                      Start Date
+                      <input
+                        type="date"
+                        value={transactionStartDate}
+                        onChange={(e) => setTransactionStartDate(e.target.value)}
+                        disabled={exporting}
+                        className="mt-1 input-field text-sm"
+                      />
+                    </label>
+                    <label className="flex flex-col text-xs font-medium text-green-800">
+                      End Date
+                      <input
+                        type="date"
+                        value={transactionEndDate}
+                        onChange={(e) => setTransactionEndDate(e.target.value)}
+                        disabled={exporting}
+                        className="mt-1 input-field text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {isInvalidDateRange(transactionStartDate, transactionEndDate) && (
+                  <p className="text-xs text-red-600">Start date cannot be later than end date.</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={handleExportTransactions}
+                  disabled={exporting}
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors disabled:opacity-60"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
+                <button
+                  onClick={handleExportTransactionsPDF}
+                  disabled={exporting}
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 font-semibold transition-colors disabled:opacity-60"
+                >
+                  <FileText className="h-4 w-4" />
+                  Generate PDF
+                </button>
+              </div>
+              {transactionFiltersActive && !isInvalidDateRange(transactionStartDate, transactionEndDate) && (
+                <p className="text-xs text-green-700">
+                  Report will include transactions with status <strong>{getTransactionStatusLabel()}</strong> covering <strong>{getDateRangeLabel(transactionStartDate, transactionEndDate)}</strong>.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-3 bg-purple-50 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-purple-600" />
                 <div className="text-left">
-                  <p className="font-semibold text-purple-900">Export Redemptions</p>
-                  <p className="text-xs text-purple-700">All redemption records</p>
+                  <p className="font-semibold text-purple-900">Redemptions</p>
+                  <p className="text-xs text-purple-700">Export redemption records with custom filters</p>
                 </div>
               </div>
-              <Download className="h-5 w-5 text-purple-600" />
-            </button>
+
+              <div className="bg-white/70 border border-purple-100 rounded-lg p-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-purple-900">
+                  <span className="font-semibold uppercase tracking-wide text-purple-700">Filters</span>
+                  <span>{getRedemptionStatusLabel()}</span>
+                  <span>•</span>
+                  <span>{getDateRangeLabel(redemptionStartDate, redemptionEndDate)}</span>
+                  <button
+                    type="button"
+                    onClick={resetRedemptionFilters}
+                    disabled={!redemptionFiltersActive || exporting}
+                    className="ml-auto px-2 py-1 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex flex-col text-xs font-medium text-purple-800">
+                    Status
+                    <select
+                      value={redemptionStatusFilter}
+                      onChange={(e) => setRedemptionStatusFilter(e.target.value as RedemptionStatusFilter)}
+                      disabled={exporting}
+                      className="mt-1 input-field text-sm"
+                    >
+                      {redemptionStatusOptions.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label className="flex flex-col text-xs font-medium text-purple-800">
+                      Start Date
+                      <input
+                        type="date"
+                        value={redemptionStartDate}
+                        onChange={(e) => setRedemptionStartDate(e.target.value)}
+                        disabled={exporting}
+                        className="mt-1 input-field text-sm"
+                      />
+                    </label>
+                    <label className="flex flex-col text-xs font-medium text-purple-800">
+                      End Date
+                      <input
+                        type="date"
+                        value={redemptionEndDate}
+                        onChange={(e) => setRedemptionEndDate(e.target.value)}
+                        disabled={exporting}
+                        className="mt-1 input-field text-sm"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {isInvalidDateRange(redemptionStartDate, redemptionEndDate) && (
+                  <p className="text-xs text-red-600">Start date cannot be later than end date.</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={handleExportRedemptions}
+                  disabled={exporting}
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors disabled:opacity-60"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
+                <button
+                  onClick={handleExportRedemptionsPDF}
+                  disabled={exporting}
+                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 font-semibold transition-colors disabled:opacity-60"
+                >
+                  <FileText className="h-4 w-4" />
+                  Generate PDF
+                </button>
+              </div>
+              {redemptionFiltersActive && !isInvalidDateRange(redemptionStartDate, redemptionEndDate) && (
+                <p className="text-xs text-purple-700">
+                  Report will include redemptions with status <strong>{getRedemptionStatusLabel()}</strong> covering <strong>{getDateRangeLabel(redemptionStartDate, redemptionEndDate)}</strong>.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

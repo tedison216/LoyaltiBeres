@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { exportToCSV, formatCustomersForCSV, parseCSVToCustomers } from '@/lib/utils/csv-export'
 import { logActivity } from '@/lib/utils/activity-log'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { applyThemeColors } from '@/lib/utils/theme'
 
 export default function CustomersManagementPage() {
   const router = useRouter()
@@ -94,6 +95,11 @@ export default function CustomersManagementPage() {
 
         if (restaurantData) {
           setRestaurant(restaurantData)
+          applyThemeColors({
+            primary: restaurantData.theme_primary_color,
+            secondary: restaurantData.theme_secondary_color,
+            accent: restaurantData.theme_accent_color,
+          })
         }
 
         // Build query with search filters

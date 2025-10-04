@@ -41,6 +41,7 @@ export interface Reward {
   description: string | null
   required_points: number | null
   required_stamps: number | null
+  image_url: string | null
   is_active: boolean
   created_at: string
   updated_at: string

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Redemption, Transaction } from '@/lib/types/database'
-import { ArrowLeft, Gift, TrendingUp, Award } from 'lucide-react'
+import { ArrowLeft, Gift, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
 
@@ -15,39 +15,53 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<'redemptions' | 'transactions'>('redemptions')
   const [loading, setLoading] = useState(true)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const ITEMS_PER_PAGE = 10
+
   useEffect(() => {
     loadData()
-  }, [])
+  }, [currentPage])
 
   async function loadData() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      
+
       if (!session) {
         router.push('/auth/login')
         return
       }
 
       // Load redemptions
-      const { data: redemptionsData } = await supabase
-        .from('redemptions')
-        .select('*')
-        .eq('customer_id', session.user.id)
-        .order('created_at', { ascending: false })
+      if (activeTab === 'redemptions') {
+        const { data: redemptionsData, count } = await supabase
+          .from('redemptions')
+          .select('*', { count: 'exact' })
+          .eq('customer_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
 
-      if (redemptionsData) {
-        setRedemptions(redemptionsData)
+        if (redemptionsData) {
+          setRedemptions(redemptionsData)
+        }
+        setTotalCount(count || 0)
       }
 
       // Load transactions
-      const { data: transactionsData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('customer_id', session.user.id)
-        .order('created_at', { ascending: false })
+      if (activeTab === 'transactions') {
+        const { data: transactionsData, count } = await supabase
+          .from('transactions')
+          .select('*', { count: 'exact' })
+          .eq('customer_id', session.user.id)
+          .neq('status', 'cancelled')
+          .order('created_at', { ascending: false })
+          .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1)
 
-      if (transactionsData) {
-        setTransactions(transactionsData)
+        if (transactionsData) {
+          setTransactions(transactionsData)
+        }
+        setTotalCount(count || 0)
       }
     } catch (error) {
       console.error('Error loading history:', error)
@@ -56,6 +70,13 @@ export default function HistoryPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    setCurrentPage(1) // Reset to first page when switching tabs
+    loadData()
+  }, [activeTab])
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
   if (loading) {
     return (
@@ -184,6 +205,33 @@ export default function HistoryPage() {
               </div>
             </div>
           ))
+        )}
+
+        {/* Pagination */}
+        {totalCount > ITEMS_PER_PAGE && (
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

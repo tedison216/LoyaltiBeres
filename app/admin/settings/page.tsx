@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, LoyaltyMode } from '@/lib/types/database'
 import { ArrowLeft, Upload, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { applyRestaurantTheme, applyThemeColors } from '@/lib/utils/theme'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -27,6 +28,16 @@ export default function SettingsPage() {
   const [pointsRatioAmount, setPointsRatioAmount] = useState(10000)
   const [pointsRatioPoints, setPointsRatioPoints] = useState(1)
   const [maxRedemptionsPerDay, setMaxRedemptionsPerDay] = useState(3)
+
+  useEffect(() => {
+    if (!loading) {
+      applyThemeColors({
+        primary: primaryColor,
+        secondary: secondaryColor,
+        accent: accentColor,
+      })
+    }
+  }, [primaryColor, secondaryColor, accentColor, loading])
 
   useEffect(() => {
     loadData()
@@ -69,6 +80,7 @@ export default function SettingsPage() {
           setPrimaryColor(restaurantData.theme_primary_color)
           setSecondaryColor(restaurantData.theme_secondary_color)
           setAccentColor(restaurantData.theme_accent_color)
+          applyRestaurantTheme(restaurantData)
           setStampRatioAmount(restaurantData.stamp_ratio_amount)
           setStampRatioStamps(restaurantData.stamp_ratio_stamps)
           setAllowMultipleStamps(restaurantData.allow_multiple_stamps_per_day)
@@ -145,6 +157,12 @@ export default function SettingsPage() {
         .eq('id', restaurant.id)
 
       if (error) throw error
+
+      applyThemeColors({
+        primary: primaryColor,
+        secondary: secondaryColor,
+        accent: accentColor,
+      })
 
       toast.success('Settings saved successfully!')
       router.push('/admin')

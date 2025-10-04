@@ -8,6 +8,7 @@ import { Settings, Gift, Image as ImageIcon, Users, LogOut, TrendingUp, Award, D
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { LanguageToggle } from '@/components/LanguageToggle'
+import { applyThemeColors } from '@/lib/utils/theme'
 
 export default function AdminDashboardPage() {
   const router = useRouter()
@@ -59,6 +60,11 @@ export default function AdminDashboardPage() {
 
         if (restaurantData) {
           setRestaurant(restaurantData)
+          applyThemeColors({
+            primary: restaurantData.theme_primary_color,
+            secondary: restaurantData.theme_secondary_color,
+            accent: restaurantData.theme_accent_color,
+          })
         }
 
         // Load stats

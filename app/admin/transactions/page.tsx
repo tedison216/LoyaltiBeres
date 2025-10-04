@@ -8,6 +8,7 @@ import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2, Calendar, ChevronLeft, 
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
 import { logActivity } from '@/lib/utils/activity-log'
+import { applyThemeColors } from '@/lib/utils/theme'
 
 type TabType = 'today' | 'older' | 'cancelled'
 
@@ -91,6 +92,11 @@ export default function TransactionsManagementPage() {
 
         if (restaurantData) {
           setRestaurant(restaurantData)
+          applyThemeColors({
+            primary: restaurantData.theme_primary_color,
+            secondary: restaurantData.theme_secondary_color,
+            accent: restaurantData.theme_accent_color,
+          })
         }
 
         // Build query based on active tab

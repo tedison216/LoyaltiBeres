@@ -7,6 +7,7 @@ import { Profile, Restaurant, Promotion } from '@/lib/types/database'
 import { Gift, Award, User, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Image from 'next/image'
+import { applyThemeColors } from '@/lib/utils/theme'
 
 export default function CustomerHomePage() {
   const router = useRouter()
@@ -53,11 +54,11 @@ export default function CustomerHomePage() {
 
         if (restaurantData) {
           setRestaurant(restaurantData)
-          
-          // Apply theme
-          document.documentElement.style.setProperty('--color-primary', restaurantData.theme_primary_color)
-          document.documentElement.style.setProperty('--color-secondary', restaurantData.theme_secondary_color)
-          document.documentElement.style.setProperty('--color-accent', restaurantData.theme_accent_color)
+          applyThemeColors({
+            primary: restaurantData.theme_primary_color,
+            secondary: restaurantData.theme_secondary_color,
+            accent: restaurantData.theme_accent_color,
+          })
         }
 
         // Load active promotions

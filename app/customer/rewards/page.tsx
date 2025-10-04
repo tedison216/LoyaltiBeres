@@ -7,6 +7,7 @@ import { Profile, Restaurant, Reward } from '@/lib/types/database'
 import { ArrowLeft, Gift, Award } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { generateRedemptionCode } from '@/lib/utils/qr-code'
+import Image from 'next/image'
 
 export default function RewardsPage() {
   const router = useRouter()
@@ -227,43 +228,60 @@ export default function RewardsPage() {
                 key={reward.id}
                 className={`card ${canRedeemReward ? 'border-2 border-primary' : 'opacity-60'}`}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1">{reward.title}</h3>
-                    {reward.description && (
-                      <p className="text-sm text-gray-600 mb-2">{reward.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 text-primary font-semibold">
-                      {isStampMode ? (
-                        <>
-                          <Award className="h-5 w-5" />
-                          <span>{requiredAmount} stamps</span>
-                        </>
-                      ) : (
-                        <>
-                          <Gift className="h-5 w-5" />
-                          <span>{requiredAmount} points</span>
-                        </>
-                      )}
+                <div className="flex items-start gap-4 mb-3">
+                  {/* Image spanning top to bottom */}
+                  {reward.image_url && (
+                    <div className="flex-shrink-0 w-24 h-32 rounded-lg overflow-hidden">
+                      <Image
+                        src={reward.image_url}
+                        alt={reward.title}
+                        width={96}
+                        height={128}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
+                  )}
+
+                  {/* Content next to image */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-semibold text-lg mb-1">{reward.title}</h3>
+                      {reward.description && (
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{reward.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 text-primary font-semibold">
+                        {isStampMode ? (
+                          <>
+                            <Award className="h-5 w-5" />
+                            <span>{requiredAmount} stamps</span>
+                          </>
+                        ) : (
+                          <>
+                            <Gift className="h-5 w-5" />
+                            <span>{requiredAmount} points</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Button aligned to bottom of content area */}
+                    <button
+                      onClick={() => handleRedeem(reward)}
+                      disabled={!canRedeemReward || todayRedemptions >= maxRedemptions}
+                      className={`w-full py-3 rounded-lg font-semibold transition-colors mt-3 ${
+                        canRedeemReward && todayRedemptions < maxRedemptions
+                          ? 'bg-primary text-white hover:bg-primary-dark'
+                          : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {todayRedemptions >= maxRedemptions
+                        ? 'Daily Limit Reached'
+                        : canRedeemReward
+                          ? 'Redeem Now'
+                          : 'Insufficient Balance'}
+                    </button>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => handleRedeem(reward)}
-                  disabled={!canRedeemReward || todayRedemptions >= maxRedemptions}
-                  className={`w-full py-3 rounded-lg font-semibold transition-colors ${
-                    canRedeemReward && todayRedemptions < maxRedemptions
-                      ? 'bg-primary text-white hover:bg-primary-dark'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {todayRedemptions >= maxRedemptions 
-                    ? 'Daily Limit Reached' 
-                    : canRedeemReward 
-                      ? 'Redeem Now' 
-                      : 'Insufficient Balance'}
-                </button>
               </div>
             )
           })

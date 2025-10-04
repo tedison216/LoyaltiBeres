@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, Reward } from '@/lib/types/database'
 import { ArrowLeft, Plus, Edit, Trash2, Award, Gift } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ImageUpload from '@/components/ImageUpload'
+import Image from 'next/image'
+import { deleteImage } from '@/lib/utils/image-upload'
 
 export default function RewardsManagementPage() {
   const router = useRouter()
@@ -20,6 +23,7 @@ export default function RewardsManagementPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [requiredAmount, setRequiredAmount] = useState(10)
+  const [imageUrl, setImageUrl] = useState('')
 
   useEffect(() => {
     loadData()
@@ -86,6 +90,7 @@ export default function RewardsManagementPage() {
         ? reward.required_stamps || 10
         : reward.required_points || 10
     )
+    setImageUrl(reward.image_url || '')
     setShowForm(true)
   }
 
@@ -94,6 +99,7 @@ export default function RewardsManagementPage() {
     setTitle('')
     setDescription('')
     setRequiredAmount(10)
+    setImageUrl('')
     setShowForm(true)
   }
 
@@ -111,6 +117,7 @@ export default function RewardsManagementPage() {
         description,
         required_stamps: isStampMode ? requiredAmount : null,
         required_points: isStampMode ? null : requiredAmount,
+        image_url: imageUrl || null,
         is_active: true,
       }
 
@@ -143,6 +150,25 @@ export default function RewardsManagementPage() {
     if (!confirm('Are you sure you want to delete this reward?')) return
 
     try {
+      // First, get the reward to check if it has an image
+      const { data: reward } = await supabase
+        .from('rewards')
+        .select('image_url')
+        .eq('id', id)
+        .single()
+
+      // Delete the image if it exists
+      if (reward?.image_url) {
+        // Extract the file path from the Supabase storage URL
+        // URL format: https://your-project.supabase.co/storage/v1/object/public/restaurant-assets/rewards/filename.jpg
+        const urlParts = reward.image_url.split('/')
+        const bucketIndex = urlParts.findIndex((part: string) => part === 'restaurant-assets')
+        if (bucketIndex !== -1 && bucketIndex + 1 < urlParts.length) {
+          const fileName = urlParts.slice(bucketIndex + 1).join('/')
+          await deleteImage(fileName, 'restaurant-assets')
+        }
+      }
+
       const { error } = await supabase
         .from('rewards')
         .delete()
@@ -224,6 +250,18 @@ export default function RewardsManagementPage() {
           </div>
 
           <div>
+            <label className="label">Reward Image</label>
+            <ImageUpload
+              value={imageUrl}
+              onChange={(url) => setImageUrl(url || '')}
+              bucket="restaurant-assets"
+              folder="rewards"
+              className="mb-4"
+              previewSize={{ width: 150, height: 150 }}
+            />
+          </div>
+
+          <div>
             <label className="label">
               Required {restaurant?.loyalty_mode === 'stamps' ? 'Stamps' : 'Points'} *
             </label>
@@ -282,11 +320,25 @@ export default function RewardsManagementPage() {
               key={reward.id}
               className={`card ${!reward.is_active ? 'opacity-60' : ''}`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
+              <div className="flex items-start gap-4 mb-3">
+                {/* Image on the left */}
+                {reward.image_url && (
+                  <div className="flex-shrink-0">
+                    <Image
+                      src={reward.image_url}
+                      alt={reward.title}
+                      width={60}
+                      height={60}
+                      className="rounded-lg object-cover"
+                    />
+                  </div>
+                )}
+
+                {/* Content on the right */}
+                <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-lg mb-1">{reward.title}</h3>
                   {reward.description && (
-                    <p className="text-sm text-gray-600 mb-2">{reward.description}</p>
+                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">{reward.description}</p>
                   )}
                   <div className="flex items-center gap-2 text-primary font-semibold">
                     {restaurant?.loyalty_mode === 'stamps' ? (
@@ -302,8 +354,10 @@ export default function RewardsManagementPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Status badge */}
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  className={`px-3 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                     reward.is_active
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-700'
