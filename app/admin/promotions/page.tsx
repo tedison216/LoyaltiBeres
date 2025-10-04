@@ -53,7 +53,7 @@ export default function PromotionsManagementPage() {
         .single()
 
       if (!profileData || profileData.role !== 'admin') {
-        toast.error('Unauthorized access')
+        toast.error('Akses tidak sah')
         router.push('/auth/login')
         return
       }
@@ -83,7 +83,7 @@ export default function PromotionsManagementPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load promotions')
+      toast.error('Gagal memuat promosi')
     } finally {
       setLoading(false)
     }
@@ -132,10 +132,10 @@ export default function PromotionsManagementPage() {
         .getPublicUrl(filePath)
 
       setBannerUrl(publicUrl)
-      toast.success('Banner uploaded successfully!')
+      toast.success('Banner berhasil diunggah!')
     } catch (error: any) {
       console.error('Error uploading banner:', error)
-      toast.error(error.message || 'Failed to upload banner')
+      toast.error(error.message || 'Gagal mengunggah banner')
     } finally {
       setUploading(false)
     }
@@ -143,7 +143,7 @@ export default function PromotionsManagementPage() {
 
   async function handleSave() {
     if (!restaurant || !title) {
-      toast.error('Please fill in all required fields')
+      toast.error('Mohon lengkapi semua kolom wajib')
       return
     }
 
@@ -166,21 +166,21 @@ export default function PromotionsManagementPage() {
           .eq('id', editingPromotion.id)
 
         if (error) throw error
-        toast.success('Promotion updated successfully!')
+        toast.success('Promosi berhasil diperbarui!')
       } else {
         const { error } = await supabase
           .from('promotions')
           .insert(promotionData)
 
         if (error) throw error
-        toast.success('Promotion created successfully!')
+        toast.success('Promosi berhasil dibuat!')
       }
 
       setShowForm(false)
       loadData()
     } catch (error: any) {
       console.error('Error saving promotion:', error)
-      toast.error(error.message || 'Failed to save promotion')
+      toast.error(error.message || 'Gagal menyimpan promosi')
     }
   }
 
@@ -214,17 +214,17 @@ export default function PromotionsManagementPage() {
     
     // Create message with promotion details
     const message = `Halo ${customer.full_name}, Sahabat Irba Steak! \n\n` +
-      `Kita ada promo baru lho: *${selectedPromotion.title}*\n\n` +
+      `Ada promo terbaru: *${selectedPromotion.title}*\n\n` +
       `${selectedPromotion.description}\n\n` +
-      `${selectedPromotion.link_url ? `More info: ${selectedPromotion.link_url}` : ''}`
-    
+      `${selectedPromotion.link_url ? `Info lengkap: ${selectedPromotion.link_url}` : ''}`
+
     openWhatsApp(customer.phone, message)
     setShowCustomerSearch(false)
-    toast.success(`Opening WhatsApp for ${customer.full_name}`)
+    toast.success(`Membuka WhatsApp untuk ${customer.full_name}`)
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this promotion?')) return
+    if (!confirm('Apakah Anda yakin ingin menghapus promosi ini?')) return
 
     try {
       const { error } = await supabase
@@ -234,11 +234,11 @@ export default function PromotionsManagementPage() {
 
       if (error) throw error
 
-      toast.success('Promotion deleted successfully!')
+      toast.success('Promosi berhasil dihapus!')
       loadData()
     } catch (error: any) {
       console.error('Error deleting promotion:', error)
-      toast.error(error.message || 'Failed to delete promotion')
+      toast.error(error.message || 'Gagal menghapus promosi')
     }
   }
 
@@ -251,11 +251,11 @@ export default function PromotionsManagementPage() {
 
       if (error) throw error
 
-      toast.success(`Promotion ${promotion.is_active ? 'deactivated' : 'activated'}!`)
+      toast.success(`Promosi ${promotion.is_active ? 'dinonaktifkan' : 'diaktifkan'}!`)
       loadData()
     } catch (error: any) {
       console.error('Error toggling promotion:', error)
-      toast.error(error.message || 'Failed to update promotion')
+      toast.error(error.message || 'Gagal memperbarui promosi')
     }
   }
 
@@ -279,36 +279,36 @@ export default function PromotionsManagementPage() {
               <ArrowLeft className="h-6 w-6" />
             </button>
             <h1 className="text-2xl font-bold">
-              {editingPromotion ? 'Edit Promotion' : 'New Promotion'}
+              {editingPromotion ? 'Ubah Promosi' : 'Promosi Baru'}
             </h1>
           </div>
         </div>
 
         <div className="px-6 py-6 space-y-4">
           <div>
-            <label className="label">Promotion Title *</label>
+            <label className="label">Judul Promosi *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="input-field"
-              placeholder="Summer Special Offer"
+              placeholder="Promo Spesial Musim Panas"
             />
           </div>
 
           <div>
-            <label className="label">Description</label>
+            <label className="label">Deskripsi</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="input-field"
               rows={3}
-              placeholder="Get 20% off on all main courses..."
+              placeholder="Diskon 20% untuk semua menu utama..."
             />
           </div>
 
           <div>
-            <label className="label">Banner Image</label>
+            <label className="label">Gambar Banner</label>
             {bannerUrl && (
               <img
                 src={bannerUrl}
@@ -318,7 +318,7 @@ export default function PromotionsManagementPage() {
             )}
             <label className="btn-secondary cursor-pointer w-full text-center">
               <Upload className="h-5 w-5 inline mr-2" />
-              {uploading ? 'Uploading...' : 'Upload Banner'}
+              {uploading ? 'Mengunggah...' : 'Unggah Banner'}
               <input
                 type="file"
                 accept="image/*"
@@ -330,7 +330,7 @@ export default function PromotionsManagementPage() {
           </div>
 
           <div>
-            <label className="label">Link URL (optional)</label>
+            <label className="label">Tautan (opsional)</label>
             <input
               type="url"
               value={linkUrl}
@@ -342,7 +342,7 @@ export default function PromotionsManagementPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Start Date</label>
+              <label className="label">Tanggal Mulai</label>
               <input
                 type="date"
                 value={startDate}
@@ -351,7 +351,7 @@ export default function PromotionsManagementPage() {
               />
             </div>
             <div>
-              <label className="label">End Date</label>
+              <label className="label">Tanggal Selesai</label>
               <input
                 type="date"
                 value={endDate}
@@ -362,7 +362,7 @@ export default function PromotionsManagementPage() {
           </div>
 
           <button onClick={handleSave} className="btn-primary w-full">
-            {editingPromotion ? 'Update Promotion' : 'Create Promotion'}
+            {editingPromotion ? 'Simpan Perubahan' : 'Buat Promosi'}
           </button>
         </div>
       </div>
@@ -380,14 +380,14 @@ export default function PromotionsManagementPage() {
             >
               <ArrowLeft className="h-6 w-6" />
             </button>
-            <h1 className="text-2xl font-bold">Promotions</h1>
+            <h1 className="text-2xl font-bold">Promosi</h1>
           </div>
           <button
             onClick={handleNew}
             className="bg-white text-primary px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
           >
             <Plus className="h-5 w-5 inline mr-1" />
-            New
+            Tambah
           </button>
         </div>
       </div>
@@ -396,9 +396,9 @@ export default function PromotionsManagementPage() {
         {promotions.length === 0 ? (
           <div className="card text-center py-12">
             <ImageIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No promotions yet</p>
+            <p className="text-gray-500 mb-4">Belum ada promosi</p>
             <button onClick={handleNew} className="btn-primary">
-              Create First Promotion
+              Buat Promosi Pertama
             </button>
           </div>
         ) : (
@@ -435,7 +435,7 @@ export default function PromotionsManagementPage() {
                       : 'bg-gray-100 text-gray-700'
                   }`}
                 >
-                  {promotion.is_active ? 'Active' : 'Inactive'}
+                  {promotion.is_active ? 'Aktif' : 'Nonaktif'}
                 </span>
               </div>
 
@@ -443,7 +443,7 @@ export default function PromotionsManagementPage() {
                 <button
                   onClick={() => openCustomerSearch(promotion)}
                   className="px-4 py-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                  title="Send via WhatsApp"
+                  title="Kirim via WhatsApp"
                 >
                   <MessageCircle className="h-4 w-4" />
                 </button>
@@ -452,13 +452,13 @@ export default function PromotionsManagementPage() {
                   className="flex-1 btn-secondary"
                 >
                   <Edit className="h-4 w-4 inline mr-1" />
-                  Edit
+                  Ubah
                 </button>
                 <button
                   onClick={() => toggleActive(promotion)}
                   className="flex-1 btn-outline"
                 >
-                  {promotion.is_active ? 'Deactivate' : 'Activate'}
+                  {promotion.is_active ? 'Nonaktifkan' : 'Aktifkan'}
                 </button>
                 <button
                   onClick={() => handleDelete(promotion.id)}
@@ -478,7 +478,7 @@ export default function PromotionsManagementPage() {
           <div className="bg-white rounded-xl max-w-md w-full max-h-[80vh] flex flex-col">
             {/* Header */}
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold">Send to Customer</h2>
+              <h2 className="text-xl font-bold">Kirim ke Pelanggan</h2>
               <button
                 onClick={() => setShowCustomerSearch(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -495,7 +495,7 @@ export default function PromotionsManagementPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search customer..."
+                  placeholder="Cari pelanggan..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   autoFocus
                 />
@@ -537,7 +537,7 @@ export default function PromotionsManagementPage() {
                 )
               }).length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  No customers found
+                  Tidak ada pelanggan
                 </div>
               )}
             </div>
@@ -545,7 +545,7 @@ export default function PromotionsManagementPage() {
             {/* Promotion Preview */}
             {selectedPromotion && (
               <div className="p-4 border-t border-gray-200 bg-gray-50">
-                <p className="text-xs text-gray-600 mb-1">Sending promotion:</p>
+                <p className="text-xs text-gray-600 mb-1">Promosi yang dikirim:</p>
                 <p className="font-semibold text-sm">{selectedPromotion.title}</p>
               </div>
             )}

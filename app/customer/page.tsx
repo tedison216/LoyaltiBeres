@@ -41,7 +41,7 @@ export default function CustomerHomePage() {
         .single()
 
       if (!profileData) {
-        toast.error('Profile not found')
+        toast.error('Profil tidak ditemukan')
         return
       }
 
@@ -78,7 +78,7 @@ export default function CustomerHomePage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load data')
+      toast.error('Gagal memuat data')
     } finally {
       setLoading(false)
     }
@@ -101,7 +101,7 @@ export default function CustomerHomePage() {
       .catch(error => {
         if (!cancelled) {
           console.error('Error generating customer QR:', error)
-          toast.error('Failed to generate QR code')
+          toast.error('Gagal membuat kode QR')
           setQrCode('')
         }
       })
@@ -155,8 +155,8 @@ export default function CustomerHomePage() {
               </div>
             )}
             <div>
-              <h1 className="text-2xl font-bold">{restaurant?.name || 'Restaurant'}</h1>
-              <p className="text-sm opacity-90">{profile?.full_name || 'Welcome!'}</p>
+              <h1 className="text-2xl font-bold">{restaurant?.name || 'Restoran'}</h1>
+              <p className="text-sm opacity-90">{profile?.full_name || 'Selamat datang!'}</p>
             </div>
           </div>
           <button
@@ -169,17 +169,17 @@ export default function CustomerHomePage() {
 
         {/* Balance Display */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-          <p className="text-sm opacity-90 mb-2">Your Balance</p>
+          <p className="text-sm opacity-90 mb-2">Saldo Anda</p>
           <div className="flex items-end gap-2">
             {restaurant?.loyalty_mode === 'stamps' ? (
               <>
                 <span className="text-5xl font-bold">{profile?.stamps || 0}</span>
-                <span className="text-xl mb-2 opacity-90">stamps</span>
+                <span className="text-xl mb-2 opacity-90">stempel</span>
               </>
             ) : (
               <>
                 <span className="text-5xl font-bold">{profile?.points || 0}</span>
-                <span className="text-xl mb-2 opacity-90">points</span>
+                <span className="text-xl mb-2 opacity-90">poin</span>
               </>
             )}
           </div>
@@ -189,7 +189,7 @@ export default function CustomerHomePage() {
       {/* Promotions Carousel */}
       {promotions.length > 0 && (
         <div className="px-6 mt-6">
-          <h2 className="text-lg font-semibold mb-3">Active Promotions</h2>
+          <h2 className="text-lg font-semibold mb-3">Promo Aktif</h2>
           <div className="relative">
             <div className="card overflow-hidden">
               {promotions[currentPromoIndex].banner_url && (
@@ -245,21 +245,21 @@ export default function CustomerHomePage() {
 
       {/* Quick Actions */}
       <div className="px-6 mt-6">
-        <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
+        <h2 className="text-lg font-semibold mb-3">Akses Cepat</h2>
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => router.push('/customer/rewards')}
             className="card hover:shadow-lg transition-shadow flex flex-col items-center justify-center py-8"
           >
             <Gift className="h-10 w-10 text-primary mb-3" />
-            <span className="font-semibold">Rewards</span>
+            <span className="font-semibold">Hadiah</span>
           </button>
           <button
             onClick={() => router.push('/customer/history')}
             className="card hover:shadow-lg transition-shadow flex flex-col items-center justify-center py-8"
           >
             <Award className="h-10 w-10 text-primary mb-3" />
-            <span className="font-semibold">History</span>
+            <span className="font-semibold">Riwayat</span>
           </button>
         </div>
       </div>
@@ -267,9 +267,9 @@ export default function CustomerHomePage() {
       {/* My QR Code */}
       <div className="px-6 mt-6">
         <div className="card flex flex-col items-center gap-4 text-center">
-          <h2 className="text-lg font-semibold">My Loyalty QR Code</h2>
+          <h2 className="text-lg font-semibold">Kode QR Loyalty Anda</h2>
           <p className="text-sm text-gray-600">
-            Show this QR code to the staff to earn points or redeem rewards quickly.
+            Tunjukkan kode QR ini kepada staf untuk mendapatkan poin.
           </p>
           <div className="w-48 h-48 bg-white border rounded-2xl flex items-center justify-center">
             {qrLoading ? (
@@ -277,7 +277,7 @@ export default function CustomerHomePage() {
             ) : qrCode ? (
               <img src={qrCode} alt="Customer QR code" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-sm text-gray-500">QR code unavailable</span>
+              <span className="text-sm text-gray-500">Kode QR tidak tersedia</span>
             )}
           </div>
           {qrCode && (
@@ -286,7 +286,7 @@ export default function CustomerHomePage() {
               download={`loyalty-${profile?.id || 'qr'}.png`}
               className="btn-primary w-full sm:w-auto"
             >
-              Download QR Code
+              Unduh Kode QR
             </a>
           )}
           {profile?.id && (
@@ -299,11 +299,11 @@ export default function CustomerHomePage() {
       {restaurant && (
         <div className="px-6 mt-6">
           <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
-            <h3 className="font-semibold mb-2">How to Earn</h3>
+            <h3 className="font-semibold mb-2">Cara Mendapatkan</h3>
             <p className="text-sm text-gray-700">
               {restaurant.loyalty_mode === 'stamps'
-                ? `Spend ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(restaurant.stamp_ratio_amount)} to earn ${restaurant.stamp_ratio_stamps} stamp${restaurant.stamp_ratio_stamps > 1 ? 's' : ''}`
-                : `Spend ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(restaurant.points_ratio_amount)} to earn ${restaurant.points_ratio_points} point${restaurant.points_ratio_points > 1 ? 's' : ''}`}
+                ? `Belanja sebesar ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(restaurant.stamp_ratio_amount)} untuk mendapat ${restaurant.stamp_ratio_stamps} stempel`
+                : `Belanja sebesar ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(restaurant.points_ratio_amount)} untuk mendapat ${restaurant.points_ratio_points} poin`}
             </p>
           </div>
         </div>

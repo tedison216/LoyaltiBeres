@@ -29,34 +29,34 @@ export default function DataManagementPage() {
   const [redemptionEndDate, setRedemptionEndDate] = useState('')
 
   const transactionStatusOptions: { value: TransactionStatusFilter; label: string }[] = [
-    { value: 'all', label: 'All statuses' },
-    { value: 'active', label: 'Active (Pending & Completed)' },
-    { value: 'completed', label: 'Completed only' },
-    { value: 'pending', label: 'Pending only' },
-    { value: 'cancelled', label: 'Cancelled only' },
+    { value: 'all', label: 'Semua status' },
+    { value: 'active', label: 'Aktif (Menunggu & Selesai)' },
+    { value: 'completed', label: 'Hanya selesai' },
+    { value: 'pending', label: 'Hanya menunggu' },
+    { value: 'cancelled', label: 'Hanya dibatalkan' },
   ]
 
   const redemptionStatusOptions: { value: RedemptionStatusFilter; label: string }[] = [
-    { value: 'all', label: 'All statuses' },
-    { value: 'verified', label: 'Verified only' },
-    { value: 'pending', label: 'Pending only' },
-    { value: 'cancelled', label: 'Cancelled only' },
+    { value: 'all', label: 'Semua status' },
+    { value: 'verified', label: 'Hanya terverifikasi' },
+    { value: 'pending', label: 'Hanya menunggu' },
+    { value: 'cancelled', label: 'Hanya dibatalkan' },
   ]
 
   const getTransactionStatusLabel = (value: TransactionStatusFilter = transactionStatusFilter) =>
-    transactionStatusOptions.find(option => option.value === value)?.label ?? 'All statuses'
+    transactionStatusOptions.find(option => option.value === value)?.label ?? 'Semua status'
 
   const getRedemptionStatusLabel = (value: RedemptionStatusFilter = redemptionStatusFilter) =>
-    redemptionStatusOptions.find(option => option.value === value)?.label ?? 'All statuses'
+    redemptionStatusOptions.find(option => option.value === value)?.label ?? 'Semua status'
 
   const getDateRangeLabel = (start: string, end: string) => {
     if (start && end) {
       if (start === end) return formatDate(start)
       return `${formatDate(start)} – ${formatDate(end)}`
     }
-    if (start) return `From ${formatDate(start)}`
-    if (end) return `Until ${formatDate(end)}`
-    return 'All time'
+    if (start) return `Mulai ${formatDate(start)}`
+    if (end) return `Sampai ${formatDate(end)}`
+    return 'Sepanjang waktu'
   }
 
   const startOfDay = (date: string) => `${date}T00:00:00`
@@ -196,7 +196,7 @@ export default function DataManagementPage() {
         .single()
 
       if (!profileData || profileData.role !== 'admin') {
-        toast.error('Unauthorized access')
+        toast.error('Akses tidak sah')
         router.push('/auth/login')
         return
       }
@@ -216,7 +216,7 @@ export default function DataManagementPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load data')
+      toast.error('Gagal memuat data')
     } finally {
       setLoading(false)
     }
@@ -237,10 +237,10 @@ export default function DataManagementPage() {
       if (error) throw error
 
       exportCustomersToPDF(data || [], restaurant.name)
-      toast.success(`Generated PDF for ${data?.length || 0} customers`)
+      toast.success(`Berhasil membuat PDF untuk ${data?.length || 0} pelanggan`)
     } catch (error: any) {
       console.error('Error generating customers PDF:', error)
-      toast.error(error.message || 'Failed to generate customers PDF')
+      toast.error(error.message || 'Gagal membuat PDF pelanggan')
     } finally {
       setExporting(false)
     }
@@ -250,7 +250,7 @@ export default function DataManagementPage() {
     if (!restaurant) return
 
     if (isInvalidDateRange(transactionStartDate, transactionEndDate)) {
-      toast.error('Invalid transaction date range')
+      toast.error('Rentang tanggal transaksi tidak valid')
       return
     }
 
@@ -259,7 +259,7 @@ export default function DataManagementPage() {
       const { data, count } = await fetchTransactionsForExport()
 
       if (!data.length) {
-        toast.error('No transactions found for the selected filters')
+        toast.error('Tidak ada transaksi sesuai filter yang dipilih')
         return
       }
 
@@ -268,23 +268,23 @@ export default function DataManagementPage() {
       const totalStamps = data.reduce((sum: number, item: any) => sum + (item.stamps_earned || 0), 0)
 
       const metadata: PDFMetadataItem[] = [
-        { label: 'Restaurant', value: restaurant.name || 'N/A' },
-        { label: 'Status Filter', value: getTransactionStatusLabel() },
-        { label: 'Date Range', value: getDateRangeLabel(transactionStartDate, transactionEndDate) },
+        { label: 'Restoran', value: restaurant.name || 'N/A' },
+        { label: 'Filter Status', value: getTransactionStatusLabel() },
+        { label: 'Rentang Tanggal', value: getDateRangeLabel(transactionStartDate, transactionEndDate) },
       ]
 
       const summary: PDFMetadataItem[] = [
-        { label: 'Total Records', value: String(count || data.length) },
-        { label: 'Total Amount', value: formatCurrency(totalAmount) },
-        { label: 'Total Points Earned', value: String(totalPoints) },
-        { label: 'Total Stamps Earned', value: String(totalStamps) },
+        { label: 'Total Data', value: String(count || data.length) },
+        { label: 'Total Nominal', value: formatCurrency(totalAmount) },
+        { label: 'Total Poin Didapat', value: String(totalPoints) },
+        { label: 'Total Stempel Didapat', value: String(totalStamps) },
       ]
 
       exportTransactionsToPDF(data, restaurant.name, metadata, summary)
-      toast.success(`Generated PDF for ${count || data.length} transactions`)
+      toast.success(`Berhasil membuat PDF untuk ${count || data.length} transaksi`)
     } catch (error: any) {
       console.error('Error generating transactions PDF:', error)
-      toast.error(error.message || 'Failed to generate transactions PDF')
+      toast.error(error.message || 'Gagal membuat PDF transaksi')
     } finally {
       setExporting(false)
     }
@@ -294,7 +294,7 @@ export default function DataManagementPage() {
     if (!restaurant) return
 
     if (isInvalidDateRange(redemptionStartDate, redemptionEndDate)) {
-      toast.error('Invalid redemption date range')
+      toast.error('Rentang tanggal penukaran tidak valid')
       return
     }
 
@@ -303,7 +303,7 @@ export default function DataManagementPage() {
       const { data, count } = await fetchRedemptionsForExport()
 
       if (!data.length) {
-        toast.error('No redemptions found for the selected filters')
+        toast.error('Tidak ada penukaran sesuai filter yang dipilih')
         return
       }
 
@@ -311,22 +311,22 @@ export default function DataManagementPage() {
       const totalStampsUsed = data.reduce((sum: number, item: any) => sum + (item.stamps_used || 0), 0)
 
       const metadata: PDFMetadataItem[] = [
-        { label: 'Restaurant', value: restaurant.name || 'N/A' },
-        { label: 'Status Filter', value: getRedemptionStatusLabel() },
-        { label: 'Date Range', value: getDateRangeLabel(redemptionStartDate, redemptionEndDate) },
+        { label: 'Restoran', value: restaurant.name || 'N/A' },
+        { label: 'Filter Status', value: getRedemptionStatusLabel() },
+        { label: 'Rentang Tanggal', value: getDateRangeLabel(redemptionStartDate, redemptionEndDate) },
       ]
 
       const summary: PDFMetadataItem[] = [
-        { label: 'Total Records', value: String(count || data.length) },
-        { label: 'Total Points Redeemed', value: String(totalPointsUsed) },
-        { label: 'Total Stamps Redeemed', value: String(totalStampsUsed) },
+        { label: 'Total Data', value: String(count || data.length) },
+        { label: 'Total Poin Ditukar', value: String(totalPointsUsed) },
+        { label: 'Total Stempel Ditukar', value: String(totalStampsUsed) },
       ]
 
       exportRedemptionsToPDF(data, restaurant.name, metadata, summary)
-      toast.success(`Generated PDF for ${count || data.length} redemptions`)
+      toast.success(`Berhasil membuat PDF untuk ${count || data.length} penukaran`)
     } catch (error: any) {
       console.error('Error generating redemptions PDF:', error)
-      toast.error(error.message || 'Failed to generate redemptions PDF')
+      toast.error(error.message || 'Gagal membuat PDF penukaran')
     } finally {
       setExporting(false)
     }
@@ -348,10 +348,10 @@ export default function DataManagementPage() {
 
       const formattedData = formatCustomersForCSV(data || [])
       exportToCSV(formattedData, 'customers')
-      toast.success(`Exported ${data?.length || 0} customers`)
+      toast.success(`Berhasil mengekspor ${data?.length || 0} pelanggan`)
     } catch (error: any) {
       console.error('Error exporting customers:', error)
-      toast.error(error.message || 'Failed to export customers')
+      toast.error(error.message || 'Gagal mengekspor pelanggan')
     } finally {
       setExporting(false)
     }
@@ -361,7 +361,7 @@ export default function DataManagementPage() {
     if (!restaurant) return
 
     if (isInvalidDateRange(transactionStartDate, transactionEndDate)) {
-      toast.error('Invalid transaction date range')
+      toast.error('Rentang tanggal transaksi tidak valid')
       return
     }
 
@@ -370,16 +370,16 @@ export default function DataManagementPage() {
       const { data, count } = await fetchTransactionsForExport()
 
       if (!data.length) {
-        toast.error('No transactions found for the selected filters')
+        toast.error('Tidak ada transaksi sesuai filter yang dipilih')
         return
       }
 
       const formattedData = formatTransactionsForCSV(data)
       exportToCSV(formattedData, 'transactions')
-      toast.success(`Exported ${count || data.length} transactions`)
+      toast.success(`Berhasil mengekspor ${count || data.length} transaksi`)
     } catch (error: any) {
       console.error('Error exporting transactions:', error)
-      toast.error(error.message || 'Failed to export transactions')
+      toast.error(error.message || 'Gagal mengekspor transaksi')
     } finally {
       setExporting(false)
     }
@@ -389,7 +389,7 @@ export default function DataManagementPage() {
     if (!restaurant) return
 
     if (isInvalidDateRange(redemptionStartDate, redemptionEndDate)) {
-      toast.error('Invalid redemption date range')
+      toast.error('Rentang tanggal penukaran tidak valid')
       return
     }
 
@@ -398,16 +398,16 @@ export default function DataManagementPage() {
       const { data, count } = await fetchRedemptionsForExport()
 
       if (!data.length) {
-        toast.error('No redemptions found for the selected filters')
+        toast.error('Tidak ada penukaran sesuai filter yang dipilih')
         return
       }
 
       const formattedData = formatRedemptionsForCSV(data)
       exportToCSV(formattedData, 'redemptions')
-      toast.success(`Exported ${count || data.length} redemptions`)
+      toast.success(`Berhasil mengekspor ${count || data.length} penukaran`)
     } catch (error: any) {
       console.error('Error exporting redemptions:', error)
-      toast.error(error.message || 'Failed to export redemptions')
+      toast.error(error.message || 'Gagal mengekspor penukaran')
     } finally {
       setExporting(false)
     }
@@ -417,10 +417,10 @@ export default function DataManagementPage() {
     if (!restaurant || !profile) return
 
     const confirmMessage = useCustomRange
-      ? `Delete all ${deleteType} from ${customStartDate} to ${customEndDate}?`
-      : `Delete all ${deleteType} older than ${deleteOlderThan} days?`
+      ? `Hapus semua ${deleteType} dari ${customStartDate} sampai ${customEndDate}?`
+      : `Hapus semua ${deleteType} yang lebih lama dari ${deleteOlderThan} hari?`
 
-    if (!confirm(`${confirmMessage}\n\nThis action cannot be undone!`)) {
+    if (!confirm(`${confirmMessage}\n\nTindakan ini tidak dapat dibatalkan!`)) {
       return
     }
 
@@ -430,7 +430,7 @@ export default function DataManagementPage() {
       
       if (useCustomRange) {
         if (!customStartDate || !customEndDate) {
-          toast.error('Please select both start and end dates')
+          toast.error('Mohon pilih tanggal mulai dan akhir')
           return
         }
         cutoffDate = customEndDate
@@ -492,11 +492,11 @@ export default function DataManagementPage() {
         }
       )
 
-      toast.success(`Deleted ${deletedCount} records`)
+      toast.success(`Berhasil menghapus ${deletedCount} data`)
       setShowDeleteModal(false)
     } catch (error: any) {
       console.error('Error deleting data:', error)
-      toast.error(error.message || 'Failed to delete data')
+      toast.error(error.message || 'Gagal menghapus data')
     } finally {
       setDeleting(false)
     }
@@ -521,8 +521,8 @@ export default function DataManagementPage() {
             <ArrowLeft className="h-6 w-6" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold">Data Management</h1>
-            <p className="text-sm opacity-90">Export and manage your data</p>
+            <h1 className="text-2xl font-bold">Manajemen Data</h1>
+            <p className="text-sm opacity-90">Ekspor dan kelola data Anda</p>
           </div>
         </div>
       </div>
@@ -532,10 +532,10 @@ export default function DataManagementPage() {
         <div className="card">
           <div className="flex items-center gap-3 mb-4">
             <Download className="h-6 w-6 text-primary" />
-            <h2 className="text-xl font-bold">Export Data</h2>
+            <h2 className="text-xl font-bold">Ekspor Data</h2>
           </div>
           <p className="text-sm text-gray-600 mb-4">
-            Generate CSV spreadsheets or polished PDF reports for backup, analysis, and sharing
+            Hasilkan spreadsheet CSV atau laporan PDF siap pakai untuk cadangan, analisis, dan berbagi
           </p>
 
           <div className="space-y-4">
@@ -543,8 +543,8 @@ export default function DataManagementPage() {
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-blue-600" />
                 <div className="text-left">
-                  <p className="font-semibold text-blue-900">Customers</p>
-                  <p className="text-xs text-blue-700">Export all customer profiles and balances</p>
+                  <p className="font-semibold text-blue-900">Pelanggan</p>
+                  <p className="text-xs text-blue-700">Ekspor seluruh profil pelanggan dan saldo mereka</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
@@ -554,7 +554,7 @@ export default function DataManagementPage() {
                   className="flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-60"
                 >
                   <Download className="h-4 w-4" />
-                  Download CSV
+                  Unduh CSV
                 </button>
                 <button
                   onClick={handleExportCustomersPDF}
@@ -562,7 +562,7 @@ export default function DataManagementPage() {
                   className="flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold transition-colors disabled:opacity-60"
                 >
                   <FileText className="h-4 w-4" />
-                  Generate PDF
+                  Buat PDF
                 </button>
               </div>
             </div>
@@ -571,14 +571,14 @@ export default function DataManagementPage() {
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-green-600" />
                 <div className="text-left">
-                  <p className="font-semibold text-green-900">Transactions</p>
-                  <p className="text-xs text-green-700">Export transaction history with custom filters</p>
+                  <p className="font-semibold text-green-900">Transaksi</p>
+                  <p className="text-xs text-green-700">Ekspor riwayat transaksi dengan filter kustom</p>
                 </div>
               </div>
 
               <div className="bg-white/70 border border-green-100 rounded-lg p-3 space-y-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-green-900">
-                  <span className="font-semibold uppercase tracking-wide text-green-700">Filters</span>
+                  <span className="font-semibold uppercase tracking-wide text-green-700">Filter</span>
                   <span>{getTransactionStatusLabel()}</span>
                   <span>•</span>
                   <span>{getDateRangeLabel(transactionStartDate, transactionEndDate)}</span>
@@ -588,7 +588,7 @@ export default function DataManagementPage() {
                     disabled={!transactionFiltersActive || exporting}
                     className="ml-auto px-2 py-1 rounded-md bg-green-100 hover:bg-green-200 text-green-800 font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Clear Filters
+                    Hapus Filter
                   </button>
                 </div>
 
@@ -608,7 +608,7 @@ export default function DataManagementPage() {
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label className="flex flex-col text-xs font-medium text-green-800">
-                      Start Date
+                      Tanggal Mulai
                       <input
                         type="date"
                         value={transactionStartDate}
@@ -618,7 +618,7 @@ export default function DataManagementPage() {
                       />
                     </label>
                     <label className="flex flex-col text-xs font-medium text-green-800">
-                      End Date
+                      Tanggal Selesai
                       <input
                         type="date"
                         value={transactionEndDate}
@@ -631,7 +631,7 @@ export default function DataManagementPage() {
                 </div>
 
                 {isInvalidDateRange(transactionStartDate, transactionEndDate) && (
-                  <p className="text-xs text-red-600">Start date cannot be later than end date.</p>
+                  <p className="text-xs text-red-600">Tanggal mulai tidak boleh lebih lambat dari tanggal akhir.</p>
                 )}
               </div>
 
@@ -642,7 +642,7 @@ export default function DataManagementPage() {
                   className="flex items-center justify-center gap-2 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold transition-colors disabled:opacity-60"
                 >
                   <Download className="h-4 w-4" />
-                  Download CSV
+                  Unduh CSV
                 </button>
                 <button
                   onClick={handleExportTransactionsPDF}
@@ -650,12 +650,12 @@ export default function DataManagementPage() {
                   className="flex items-center justify-center gap-2 py-3 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 font-semibold transition-colors disabled:opacity-60"
                 >
                   <FileText className="h-4 w-4" />
-                  Generate PDF
+                  Buat PDF
                 </button>
               </div>
               {transactionFiltersActive && !isInvalidDateRange(transactionStartDate, transactionEndDate) && (
                 <p className="text-xs text-green-700">
-                  Report will include transactions with status <strong>{getTransactionStatusLabel()}</strong> covering <strong>{getDateRangeLabel(transactionStartDate, transactionEndDate)}</strong>.
+                  Laporan akan mencakup transaksi dengan status <strong>{getTransactionStatusLabel()}</strong> untuk rentang <strong>{getDateRangeLabel(transactionStartDate, transactionEndDate)}</strong>.
                 </p>
               )}
             </div>
@@ -664,14 +664,14 @@ export default function DataManagementPage() {
               <div className="flex items-center gap-3">
                 <Database className="h-5 w-5 text-purple-600" />
                 <div className="text-left">
-                  <p className="font-semibold text-purple-900">Redemptions</p>
-                  <p className="text-xs text-purple-700">Export redemption records with custom filters</p>
+                  <p className="font-semibold text-purple-900">Penukaran</p>
+                  <p className="text-xs text-purple-700">Ekspor data penukaran dengan filter kustom</p>
                 </div>
               </div>
 
               <div className="bg-white/70 border border-purple-100 rounded-lg p-3 space-y-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-purple-900">
-                  <span className="font-semibold uppercase tracking-wide text-purple-700">Filters</span>
+                  <span className="font-semibold uppercase tracking-wide text-purple-700">Filter</span>
                   <span>{getRedemptionStatusLabel()}</span>
                   <span>•</span>
                   <span>{getDateRangeLabel(redemptionStartDate, redemptionEndDate)}</span>
@@ -681,7 +681,7 @@ export default function DataManagementPage() {
                     disabled={!redemptionFiltersActive || exporting}
                     className="ml-auto px-2 py-1 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Clear Filters
+                    Hapus Filter
                   </button>
                 </div>
 
@@ -701,7 +701,7 @@ export default function DataManagementPage() {
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label className="flex flex-col text-xs font-medium text-purple-800">
-                      Start Date
+                      Tanggal Mulai
                       <input
                         type="date"
                         value={redemptionStartDate}
@@ -711,7 +711,7 @@ export default function DataManagementPage() {
                       />
                     </label>
                     <label className="flex flex-col text-xs font-medium text-purple-800">
-                      End Date
+                      Tanggal Selesai
                       <input
                         type="date"
                         value={redemptionEndDate}
@@ -724,7 +724,7 @@ export default function DataManagementPage() {
                 </div>
 
                 {isInvalidDateRange(redemptionStartDate, redemptionEndDate) && (
-                  <p className="text-xs text-red-600">Start date cannot be later than end date.</p>
+                  <p className="text-xs text-red-600">Tanggal mulai tidak boleh lebih lambat dari tanggal akhir.</p>
                 )}
               </div>
 
@@ -735,7 +735,7 @@ export default function DataManagementPage() {
                   className="flex items-center justify-center gap-2 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors disabled:opacity-60"
                 >
                   <Download className="h-4 w-4" />
-                  Download CSV
+                  Unduh CSV
                 </button>
                 <button
                   onClick={handleExportRedemptionsPDF}
@@ -743,12 +743,12 @@ export default function DataManagementPage() {
                   className="flex items-center justify-center gap-2 py-3 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 font-semibold transition-colors disabled:opacity-60"
                 >
                   <FileText className="h-4 w-4" />
-                  Generate PDF
+                  Buat PDF
                 </button>
               </div>
               {redemptionFiltersActive && !isInvalidDateRange(redemptionStartDate, redemptionEndDate) && (
                 <p className="text-xs text-purple-700">
-                  Report will include redemptions with status <strong>{getRedemptionStatusLabel()}</strong> covering <strong>{getDateRangeLabel(redemptionStartDate, redemptionEndDate)}</strong>.
+                  Laporan akan mencakup penukaran dengan status <strong>{getRedemptionStatusLabel()}</strong> untuk rentang <strong>{getDateRangeLabel(redemptionStartDate, redemptionEndDate)}</strong>.
                 </p>
               )}
             </div>

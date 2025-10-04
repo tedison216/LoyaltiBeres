@@ -15,6 +15,19 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<'redemptions' | 'transactions'>('redemptions')
   const [loading, setLoading] = useState(true)
 
+  const getRedemptionStatusLabel = (status: Redemption['status']) => {
+    switch (status) {
+      case 'verified':
+        return 'Terverifikasi'
+      case 'pending':
+        return 'Menunggu'
+      case 'cancelled':
+        return 'Dibatalkan'
+      default:
+        return status
+    }
+  }
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -65,7 +78,7 @@ export default function HistoryPage() {
       }
     } catch (error) {
       console.error('Error loading history:', error)
-      toast.error('Failed to load history')
+      toast.error('Gagal memuat riwayat')
     } finally {
       setLoading(false)
     }
@@ -97,7 +110,7 @@ export default function HistoryPage() {
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-2xl font-bold">History</h1>
+          <h1 className="text-2xl font-bold">Riwayat</h1>
         </div>
       </div>
 
@@ -112,7 +125,7 @@ export default function HistoryPage() {
                 : 'text-gray-500'
             }`}
           >
-            Redemptions
+            Penukaran
           </button>
           <button
             onClick={() => setActiveTab('transactions')}
@@ -122,7 +135,7 @@ export default function HistoryPage() {
                 : 'text-gray-500'
             }`}
           >
-            Transactions
+            Transaksi
           </button>
         </div>
       </div>
@@ -133,7 +146,7 @@ export default function HistoryPage() {
           redemptions.length === 0 ? (
             <div className="card text-center py-12">
               <Gift className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No redemptions yet</p>
+              <p className="text-gray-500">Belum ada penukaran</p>
             </div>
           ) : (
             redemptions.map((redemption) => (
@@ -156,15 +169,15 @@ export default function HistoryPage() {
                         : 'bg-red-100 text-red-700'
                     }`}
                   >
-                    {redemption.status}
+                    {getRedemptionStatusLabel(redemption.status)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-primary font-semibold">
                   <Award className="h-5 w-5" />
                   <span>
                     {redemption.stamps_used > 0
-                      ? `${redemption.stamps_used} stamps`
-                      : `${redemption.points_used} points`}
+                      ? `${redemption.stamps_used} stempel`
+                      : `${redemption.points_used} poin`}
                   </span>
                 </div>
                 {redemption.status === 'pending' && (
@@ -172,7 +185,7 @@ export default function HistoryPage() {
                     onClick={() => router.push(`/customer/redemption/${redemption.redemption_code}`)}
                     className="btn-outline w-full mt-3"
                   >
-                    View QR Code
+                    Lihat Kode QR
                   </button>
                 )}
               </div>
@@ -181,7 +194,7 @@ export default function HistoryPage() {
         ) : transactions.length === 0 ? (
           <div className="card text-center py-12">
             <TrendingUp className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No transactions yet</p>
+            <p className="text-gray-500">Belum ada transaksi</p>
           </div>
         ) : (
           transactions.map((transaction) => (
@@ -198,8 +211,8 @@ export default function HistoryPage() {
                 <div className="text-right">
                   <p className="text-green-600 font-semibold">
                     +{transaction.stamps_earned > 0
-                      ? `${transaction.stamps_earned} stamps`
-                      : `${transaction.points_earned} points`}
+                      ? `${transaction.stamps_earned} stempel`
+                      : `${transaction.points_earned} poin`}
                   </p>
                 </div>
               </div>
@@ -217,17 +230,17 @@ export default function HistoryPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                Sebelumnya
               </button>
               <span className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages}
+                Halaman {currentPage} dari {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Next
+                Berikutnya
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>

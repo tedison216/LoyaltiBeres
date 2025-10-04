@@ -73,7 +73,7 @@ export default function CustomersManagementPage() {
 
       if (profileError) {
         console.error('Profile error:', profileError)
-        toast.error('Failed to load profile: ' + profileError.message)
+        toast.error('Gagal memuat profil: ' + profileError.message)
         return
       }
 
@@ -81,7 +81,7 @@ export default function CustomersManagementPage() {
 
       if (!profileData || profileData.role !== 'admin') {
         console.log('Not admin or no profile')
-        toast.error('Unauthorized access')
+        toast.error('Akses tidak sah')
         router.push('/auth/login')
         return
       }
@@ -125,7 +125,7 @@ export default function CustomersManagementPage() {
 
         if (customersError) {
           console.error('Customers error:', customersError)
-          toast.error('Failed to load customers: ' + customersError.message)
+          toast.error('Gagal memuat pelanggan: ' + customersError.message)
         } else if (customersData) {
           console.log('Loaded customers:', customersData.length)
           setCustomers(customersData)
@@ -133,7 +133,7 @@ export default function CustomersManagementPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load customers')
+      toast.error('Gagal memuat pelanggan')
     } finally {
       console.log('Loading complete, setting loading to false')
       setLoading(false)
@@ -158,7 +158,7 @@ export default function CustomersManagementPage() {
       setQrCodes(prev => ({ ...prev, [customer.id]: code }))
     } catch (error) {
       console.error('Error generating customer QR:', error)
-      toast.error('Failed to generate QR code')
+      toast.error('Gagal membuat kode QR')
     } finally {
       setQrLoadingId('')
     }
@@ -166,12 +166,12 @@ export default function CustomersManagementPage() {
 
   async function handleAddCustomer() {
     if (!restaurant || !profile || !newCustomerPhone) {
-      toast.error('Please provide phone number')
+      toast.error('Mohon masukkan nomor telepon')
       return
     }
 
     if (!newCustomerName) {
-      toast.error('Please provide customer name')
+      toast.error('Mohon masukkan nama pelanggan')
       return
     }
 
@@ -197,14 +197,14 @@ export default function CustomersManagementPage() {
 
       if (error) {
         if (error.code === '23505') {
-          toast.error('A customer with this phone already exists')
+          toast.error('Pelanggan dengan nomor ini sudah terdaftar')
         } else {
           throw error
         }
         return
       }
 
-      toast.success(`Customer added! PIN: ${customerPin}. Share this PIN with the customer.`)
+      toast.success(`Pelanggan ditambahkan! PIN: ${customerPin}. Berikan PIN ini kepada pelanggan.`)
       setShowAddForm(false)
       setNewCustomerName('')
       setNewCustomerPhone('')
@@ -213,7 +213,7 @@ export default function CustomersManagementPage() {
       loadData()
     } catch (error: any) {
       console.error('Error adding customer:', error)
-      toast.error(error.message || 'Failed to add customer')
+      toast.error(error.message || 'Gagal menambahkan pelanggan')
     } finally {
       setAdding(false)
     }
@@ -229,7 +229,7 @@ export default function CustomersManagementPage() {
 
   async function handleUpdateCustomer() {
     if (!editingCustomer || !editName) {
-      toast.error('Please provide customer name')
+      toast.error('Mohon masukkan nama pelanggan')
       return
     }
 
@@ -246,13 +246,13 @@ export default function CustomersManagementPage() {
 
       if (error) throw error
 
-      toast.success('Customer updated successfully')
+      toast.success('Pelanggan berhasil diperbarui')
       setShowEditForm(false)
       setEditingCustomer(null)
       loadData()
     } catch (error: any) {
       console.error('Error updating customer:', error)
-      toast.error(error.message || 'Failed to update customer')
+      toast.error(error.message || 'Gagal memperbarui pelanggan')
     } finally {
       setUpdating(false)
     }
@@ -270,7 +270,7 @@ export default function CustomersManagementPage() {
 
     const amount = parseInt(pointsAdjustment)
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount')
+      toast.error('Masukkan jumlah yang valid')
       return
     }
 
@@ -313,20 +313,20 @@ export default function CustomersManagementPage() {
         }
       )
 
-      toast.success(`${isStampMode ? 'Stamps' : 'Points'} adjusted successfully`)
+      toast.success(`${isStampMode ? 'Stempel' : 'Poin'} berhasil disesuaikan`)
       setShowAdjustPoints(false)
       setAdjustingCustomer(null)
       loadData()
     } catch (error: any) {
       console.error('Error adjusting points:', error)
-      toast.error(error.message || 'Failed to adjust points')
+      toast.error(error.message || 'Gagal menyesuaikan poin/stempel')
     } finally {
       setAdjusting(false)
     }
   }
 
   async function handleDeleteCustomer(customer: Profile) {
-    if (!confirm(`Are you sure you want to delete ${customer.full_name || 'this customer'}? This will also delete all their transactions and redemptions.`)) {
+    if (!confirm(`Apakah Anda yakin ingin menghapus ${customer.full_name || 'pelanggan ini'}? Semua transaksi dan penukaran terkait juga akan dihapus.`)) {
       return
     }
 
@@ -355,11 +355,11 @@ export default function CustomersManagementPage() {
         )
       }
 
-      toast.success('Customer deleted successfully')
+      toast.success('Pelanggan berhasil dihapus')
       loadData()
     } catch (error: any) {
       console.error('Error deleting customer:', error)
-      toast.error(error.message || 'Failed to delete customer')
+      toast.error(error.message || 'Gagal menghapus pelanggan')
     }
   }
   
@@ -367,10 +367,10 @@ export default function CustomersManagementPage() {
     try {
       const formattedData = formatCustomersForCSV(customers)
       exportToCSV(formattedData, 'customers')
-      toast.success(`Exported ${customers.length} customers`)
+      toast.success(`Berhasil mengekspor ${customers.length} pelanggan`)
     } catch (error: any) {
       console.error('Error exporting CSV:', error)
-      toast.error(error.message || 'Failed to export CSV')
+      toast.error(error.message || 'Gagal mengekspor CSV')
     }
   }
   
@@ -384,7 +384,7 @@ export default function CustomersManagementPage() {
       const customersData = parseCSVToCustomers(text)
       
       if (customersData.length === 0) {
-        toast.error('No valid customer data found in CSV')
+        toast.error('Data pelanggan tidak valid pada CSV')
         return
       }
 
@@ -434,14 +434,14 @@ export default function CustomersManagementPage() {
         }
       )
 
-      toast.success(`Imported ${successCount} customers. ${errorCount > 0 ? `${errorCount} failed.` : ''}`)
+      toast.success(`Berhasil mengimpor ${successCount} pelanggan. ${errorCount > 0 ? `${errorCount} gagal.` : ''}`)
       loadData()
       
       // Reset file input
       event.target.value = ''
     } catch (error: any) {
       console.error('Error importing CSV:', error)
-      toast.error(error.message || 'Failed to import CSV')
+      toast.error(error.message || 'Gagal mengimpor CSV')
     } finally {
       setImporting(false)
     }
@@ -463,7 +463,7 @@ export default function CustomersManagementPage() {
     link.download = 'customer_import_template.csv'
     link.click()
     URL.revokeObjectURL(url)
-    toast.success('Template downloaded')
+    toast.success('Template berhasil diunduh')
   }
 
   function handleSearchChange(value: string) {
@@ -491,9 +491,9 @@ export default function CustomersManagementPage() {
               <ArrowLeft className="h-6 w-6" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold">Customers</h1>
+              <h1 className="text-2xl font-bold">Pelanggan</h1>
               <p className="text-sm opacity-90">
-                {totalCount} total members
+                {totalCount} total anggota
               </p>
             </div>
           </div>
@@ -501,7 +501,7 @@ export default function CustomersManagementPage() {
             <button
               onClick={downloadCSVTemplate}
               className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
-              title="Download CSV Template"
+              title="Unduh Template CSV"
             >
               <Download className="h-5 w-5" />
               <span className="text-xs">Template</span>
@@ -509,12 +509,12 @@ export default function CustomersManagementPage() {
             <button
               onClick={handleExportCSV}
               className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
-              title="Export to CSV"
+              title="Ekspor ke CSV"
             >
               <Download className="h-5 w-5" />
             </button>
             <label className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 cursor-pointer"
-              title="Import from CSV">
+              title="Impor dari CSV">
               <Upload className="h-5 w-5" />
               <input
                 type="file"
@@ -529,7 +529,7 @@ export default function CustomersManagementPage() {
               className="bg-white text-primary px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
             >
               <Plus className="h-5 w-5" />
-              Add
+              Tambah
             </button>
           </div>
         </div>
@@ -541,7 +541,7 @@ export default function CustomersManagementPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search by name, phone, or email..."
+            placeholder="Cari berdasarkan nama, telepon, atau email..."
             className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900"
           />
         </div>
@@ -551,11 +551,11 @@ export default function CustomersManagementPage() {
       {showEditForm && editingCustomer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Edit Customer</h2>
+            <h2 className="text-xl font-bold mb-4">Ubah Pelanggan</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="label">Full Name *</label>
+                <label className="label">Nama Lengkap *</label>
                 <input
                   type="text"
                   value={editName}
@@ -567,13 +567,13 @@ export default function CustomersManagementPage() {
               </div>
 
               <div>
-                <label className="label">Phone Number</label>
+                <label className="label">Nomor Telepon</label>
                 <input
                   type="tel"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
                   className="input-field"
-                  placeholder="8123456789"
+                  placeholder="08123456789"
                 />
               </div>
 
@@ -594,7 +594,7 @@ export default function CustomersManagementPage() {
                   disabled={updating}
                   className="flex-1 btn-primary"
                 >
-                  {updating ? 'Updating...' : 'Update Customer'}
+                  {updating ? 'Memperbarui...' : 'Simpan Perubahan'}
                 </button>
                 <button
                   onClick={() => {
@@ -603,7 +603,7 @@ export default function CustomersManagementPage() {
                   }}
                   className="flex-1 btn-secondary"
                 >
-                  Cancel
+                  Batal
                 </button>
               </div>
             </div>
@@ -616,20 +616,20 @@ export default function CustomersManagementPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">
-              Adjust {restaurant?.loyalty_mode === 'stamps' ? 'Stamps' : 'Points'}
+              Sesuaikan {restaurant?.loyalty_mode === 'stamps' ? 'Stempel' : 'Poin'}
             </h2>
             
             <div className="space-y-4">
               <div className="card bg-gray-50">
                 <p className="text-sm text-gray-600 mb-1">{adjustingCustomer.full_name}</p>
                 <p className="text-2xl font-bold text-primary">
-                  Current: {restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points}
-                  {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                  Saat ini: {restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points}
+                  {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stempel' : 'poin'}
                 </p>
               </div>
 
               <div>
-                <label className="label">Action</label>
+                <label className="label">Aksi</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setAdjustmentReason('add')}
@@ -639,7 +639,7 @@ export default function CustomersManagementPage() {
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Add
+                    Tambah
                   </button>
                   <button
                     onClick={() => setAdjustmentReason('subtract')}
@@ -649,13 +649,13 @@ export default function CustomersManagementPage() {
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    Subtract
+                    Kurangi
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="label">Amount *</label>
+                <label className="label">Jumlah *</label>
                 <input
                   type="number"
                   value={pointsAdjustment}
@@ -669,13 +669,13 @@ export default function CustomersManagementPage() {
 
               {pointsAdjustment && (
                 <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
-                  <p className="text-sm text-gray-700 mb-1">New balance will be:</p>
+                  <p className="text-sm text-gray-700 mb-1">Saldo baru akan menjadi:</p>
                   <p className="text-2xl font-bold text-primary">
                     {adjustmentReason === 'add'
                       ? (restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points) + parseInt(pointsAdjustment || '0')
                       : Math.max(0, (restaurant?.loyalty_mode === 'stamps' ? adjustingCustomer.stamps : adjustingCustomer.points) - parseInt(pointsAdjustment || '0'))
                     }
-                    {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                    {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stempel' : 'poin'}
                   </p>
                 </div>
               )}
@@ -686,7 +686,7 @@ export default function CustomersManagementPage() {
                   disabled={adjusting}
                   className="flex-1 btn-primary"
                 >
-                  {adjusting ? 'Adjusting...' : 'Confirm'}
+                  {adjusting ? 'Menyesuaikan...' : 'Konfirmasi'}
                 </button>
                 <button
                   onClick={() => {
@@ -695,7 +695,7 @@ export default function CustomersManagementPage() {
                   }}
                   className="flex-1 btn-secondary"
                 >
-                  Cancel
+                  Batal
                 </button>
               </div>
             </div>
@@ -707,11 +707,11 @@ export default function CustomersManagementPage() {
       {showAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Add New Customer</h2>
+            <h2 className="text-xl font-bold mb-4">Tambah Pelanggan Baru</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="label">Full Name *</label>
+                <label className="label">Nama Lengkap *</label>
                 <input
                   type="text"
                   value={newCustomerName}
@@ -723,7 +723,7 @@ export default function CustomersManagementPage() {
               </div>
 
               <div>
-                <label className="label">Phone Number *</label>
+                <label className="label">Nomor Telepon *</label>
                 <input
                   type="tel"
                   value={newCustomerPhone}
@@ -735,7 +735,7 @@ export default function CustomersManagementPage() {
               </div>
 
               <div>
-                <label className="label">Email (optional)</label>
+                <label className="label">Email (opsional)</label>
                 <input
                   type="email"
                   value={newCustomerEmail}
@@ -746,7 +746,7 @@ export default function CustomersManagementPage() {
               </div>
 
               <div>
-                <label className="label">PIN (optional - auto-generated if empty)</label>
+                <label className="label">PIN (opsional - dibuat otomatis jika kosong)</label>
                 <input
                   type="text"
                   value={newCustomerPin}
@@ -756,7 +756,7 @@ export default function CustomersManagementPage() {
                   maxLength={4}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Leave empty to auto-generate a 4-digit PIN
+                  Kosongkan untuk membuat PIN 4 digit secara otomatis
                 </p>
               </div>
 
@@ -766,7 +766,7 @@ export default function CustomersManagementPage() {
                   disabled={adding}
                   className="flex-1 btn-primary"
                 >
-                  {adding ? 'Adding...' : 'Add Customer'}
+                  {adding ? 'Menambahkan...' : 'Simpan Pelanggan'}
                 </button>
                 <button
                   onClick={() => {
@@ -777,7 +777,7 @@ export default function CustomersManagementPage() {
                   }}
                   className="flex-1 btn-secondary"
                 >
-                  Cancel
+                  Batal
                 </button>
               </div>
             </div>
@@ -789,7 +789,7 @@ export default function CustomersManagementPage() {
         {customers.length === 0 ? (
           <div className="card text-center py-12">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">{searchQuery ? 'No customers found' : 'No customers yet'}</p>
+            <p className="text-gray-500">{searchQuery ? 'Tidak ada pelanggan' : 'Belum ada pelanggan'}</p>
           </div>
         ) : (
           customers.map((customer) => (
@@ -797,31 +797,31 @@ export default function CustomersManagementPage() {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg mb-1">
-                    {customer.full_name || 'Unknown'}
+                    {customer.full_name || 'Tidak diketahui'}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {customer.phone || customer.email || 'No contact info'}
+                    {customer.phone || customer.email || 'Tidak ada kontak'}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEditForm(customer)}
                     className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                    title="Edit customer"
+                    title="Ubah pelanggan"
                   >
                     <Edit className="h-4 w-4 text-blue-600" />
                   </button>
                   <button
                     onClick={() => openAdjustPoints(customer)}
                     className="p-2 hover:bg-green-100 rounded-lg transition-colors"
-                    title="Adjust points/stamps"
+                    title="Sesuaikan poin/stempel"
                   >
                     <Coins className="h-4 w-4 text-green-600" />
                   </button>
                   <button
                     onClick={() => handleDeleteCustomer(customer)}
                     className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                    title="Delete customer"
+                    title="Hapus pelanggan"
                   >
                     <Trash2 className="h-4 w-4 text-red-600" />
                   </button>
@@ -837,7 +837,7 @@ export default function CustomersManagementPage() {
                       <Gift className="h-4 w-4" />
                     )}
                     <span className="text-xs font-medium">
-                      {restaurant?.loyalty_mode === 'stamps' ? 'Stamps' : 'Points'}
+                      {restaurant?.loyalty_mode === 'stamps' ? 'Stempel' : 'Poin'}
                     </span>
                   </div>
                   <p className="text-2xl font-bold">
@@ -848,7 +848,7 @@ export default function CustomersManagementPage() {
                 <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-lg p-3">
                   <div className="flex items-center gap-2 text-secondary mb-1">
                     <Users className="h-4 w-4" />
-                    <span className="text-xs font-medium">Member Since</span>
+                    <span className="text-xs font-medium">Anggota Sejak</span>
                   </div>
                   <p className="text-sm font-semibold">
                     {new Date(customer.created_at).toLocaleDateString('id-ID', {
@@ -865,7 +865,7 @@ export default function CustomersManagementPage() {
                   className="btn-secondary w-full flex items-center justify-center gap-2"
                 >
                   <QrCode className="h-4 w-4" />
-                  {qrLoadingId === customer.id ? 'Generating QR…' : 'Show QR Code'}
+                  {qrLoadingId === customer.id ? 'Membuat QR…' : 'Tampilkan Kode QR'}
                 </button>
 
                 {qrCodes[customer.id] && (
@@ -876,7 +876,7 @@ export default function CustomersManagementPage() {
                       download={`customer-${customer.id}.png`}
                       className="inline-block mt-2 text-xs text-primary underline"
                     >
-                      Download QR
+                      Unduh QR
                     </a>
                   </div>
                 )}
@@ -894,17 +894,17 @@ export default function CustomersManagementPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Previous
+                Sebelumnya
               </button>
               <span className="text-sm text-gray-600">
-                Page {currentPage} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                Halaman {currentPage} dari {Math.ceil(totalCount / ITEMS_PER_PAGE)}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), p + 1))}
                 disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Next
+                Berikutnya
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>

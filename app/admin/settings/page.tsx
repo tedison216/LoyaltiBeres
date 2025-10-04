@@ -59,7 +59,7 @@ export default function SettingsPage() {
         .single()
 
       if (!profileData || profileData.role !== 'admin') {
-        toast.error('Unauthorized access')
+        toast.error('Akses tidak sah')
         router.push('/auth/login')
         return
       }
@@ -91,7 +91,7 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load settings')
+      toast.error('Gagal memuat pengaturan')
     } finally {
       setLoading(false)
     }
@@ -125,10 +125,10 @@ export default function SettingsPage() {
       if (updateError) throw updateError
 
       setRestaurant({ ...restaurant, logo_url: publicUrl })
-      toast.success('Logo uploaded successfully!')
+      toast.success('Logo berhasil diunggah!')
     } catch (error: any) {
       console.error('Error uploading logo:', error)
-      toast.error(error.message || 'Failed to upload logo')
+      toast.error(error.message || 'Gagal mengunggah logo')
     } finally {
       setUploading(false)
     }
@@ -164,11 +164,11 @@ export default function SettingsPage() {
         accent: accentColor,
       })
 
-      toast.success('Settings saved successfully!')
+      toast.success('Pengaturan berhasil disimpan!')
       router.push('/admin')
     } catch (error: any) {
       console.error('Error saving settings:', error)
-      toast.error(error.message || 'Failed to save settings')
+      toast.error(error.message || 'Gagal menyimpan pengaturan')
     } finally {
       setSaving(false)
     }
@@ -193,23 +193,23 @@ export default function SettingsPage() {
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-2xl font-bold">Restaurant Settings</h1>
+          <h1 className="text-2xl font-bold">Pengaturan Restoran</h1>
         </div>
       </div>
 
       <div className="px-6 py-6 space-y-6">
         {/* Basic Info */}
         <div className="card">
-          <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
+          <h2 className="text-lg font-semibold mb-4">Informasi Dasar</h2>
           
           <div className="mb-4">
-            <label className="label">Restaurant Name</label>
+            <label className="label">Nama Restoran</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="input-field"
-              placeholder="My Restaurant"
+              placeholder="Restoran Saya"
             />
           </div>
 
@@ -225,7 +225,7 @@ export default function SettingsPage() {
               )}
               <label className="btn-secondary cursor-pointer">
                 <Upload className="h-5 w-5 inline mr-2" />
-                {uploading ? 'Uploading...' : 'Upload Logo'}
+                {uploading ? 'Mengunggah...' : 'Unggah Logo'}
                 <input
                   type="file"
                   accept="image/*"
@@ -240,11 +240,11 @@ export default function SettingsPage() {
 
         {/* Theme Colors */}
         <div className="card">
-          <h2 className="text-lg font-semibold mb-4">Theme Colors</h2>
+          <h2 className="text-lg font-semibold mb-4">Warna Tema</h2>
           
           <div className="space-y-4">
             <div>
-              <label className="label">Primary Color</label>
+              <label className="label">Warna Utama</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -262,7 +262,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="label">Secondary Color</label>
+              <label className="label">Warna Sekunder</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -280,7 +280,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="label">Accent Color</label>
+              <label className="label">Warna Aksen</label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -301,10 +301,10 @@ export default function SettingsPage() {
 
         {/* Loyalty System */}
         <div className="card">
-          <h2 className="text-lg font-semibold mb-4">Loyalty System</h2>
+          <h2 className="text-lg font-semibold mb-4">Program Loyalti</h2>
           
           <div className="mb-4">
-            <label className="label">Loyalty Mode</label>
+            <label className="label">Mode Loyalti</label>
             <div className="flex gap-4">
               <button
                 onClick={() => setLoyaltyMode('stamps')}
@@ -314,7 +314,7 @@ export default function SettingsPage() {
                     : 'bg-gray-200 text-gray-700'
                 }`}
               >
-                Stamps
+                Stempel
               </button>
               <button
                 onClick={() => setLoyaltyMode('points')}
@@ -324,7 +324,7 @@ export default function SettingsPage() {
                     : 'bg-gray-200 text-gray-700'
                 }`}
               >
-                Points
+                Poin
               </button>
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function SettingsPage() {
           {loyaltyMode === 'stamps' ? (
             <>
               <div className="mb-4">
-                <label className="label">Stamp Ratio</label>
+                <label className="label">Rasio Stempel</label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm">Rp.</span>
                   <input
@@ -348,7 +348,7 @@ export default function SettingsPage() {
                     onChange={(e) => setStampRatioStamps(Number(e.target.value))}
                     className="input-field w-20"
                   />
-                  <span className="text-sm">stamp(s)</span>
+                  <span className="text-sm">stempel</span>
                 </div>
               </div>
 
@@ -360,13 +360,13 @@ export default function SettingsPage() {
                     onChange={(e) => setAllowMultipleStamps(e.target.checked)}
                     className="w-5 h-5 text-primary"
                   />
-                  <span className="text-sm">Allow multiple stamps per day</span>
+                  <span className="text-sm">Izinkan beberapa stempel per hari</span>
                 </label>
               </div>
             </>
           ) : (
             <div>
-              <label className="label">Points Ratio</label>
+              <label className="label">Rasio Poin</label>
               <div className="flex items-center gap-2">
                 <span className="text-sm">Rp.</span>
                 <input
@@ -382,7 +382,7 @@ export default function SettingsPage() {
                   onChange={(e) => setPointsRatioPoints(Number(e.target.value))}
                   className="input-field w-20"
                 />
-                <span className="text-sm">point(s)</span>
+                <span className="text-sm">poin</span>
               </div>
             </div>
           )}
@@ -390,10 +390,10 @@ export default function SettingsPage() {
 
         {/* Fraud Prevention */}
         <div className="card">
-          <h2 className="text-lg font-semibold mb-4">Fraud Prevention</h2>
+          <h2 className="text-lg font-semibold mb-4">Pencegahan Penyalahgunaan</h2>
           
           <div>
-            <label className="label">Max Redemptions Per Day</label>
+            <label className="label">Maksimum Penukaran per Hari</label>
             <input
               type="number"
               value={maxRedemptionsPerDay}
@@ -403,7 +403,7 @@ export default function SettingsPage() {
               max="10"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Maximum number of rewards a customer can redeem per day. This helps prevent fraud and abuse.
+              Jumlah maksimal reward yang dapat ditukar pelanggan per hari. Membantu mencegah kecurangan dan penyalahgunaan.
             </p>
           </div>
         </div>
@@ -415,7 +415,7 @@ export default function SettingsPage() {
           className="btn-primary w-full"
         >
           <Save className="h-5 w-5 inline mr-2" />
-          {saving ? 'Saving...' : 'Save Settings'}
+          {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
         </button>
       </div>
     </div>

@@ -71,8 +71,8 @@ export default function TransactionsManagementPage() {
 
       return (
         <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
-          <p className="text-sm text-gray-700 mb-2">Customer will earn:</p>
-          <p className="text-2xl font-bold text-primary">{earnedStamps} stamps</p>
+          <p className="text-sm text-gray-700 mb-2">Pelanggan akan mendapatkan:</p>
+          <p className="text-2xl font-bold text-primary">{earnedStamps} stempel</p>
         </div>
       )
     }
@@ -83,8 +83,8 @@ export default function TransactionsManagementPage() {
 
     return (
       <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
-        <p className="text-sm text-gray-700 mb-2">Customer will earn:</p>
-        <p className="text-2xl font-bold text-primary">{earnedPoints} points</p>
+        <p className="text-sm text-gray-700 mb-2">Pelanggan akan mendapatkan:</p>
+        <p className="text-2xl font-bold text-primary">{earnedPoints} poin</p>
       </div>
     )
   }
@@ -100,7 +100,7 @@ export default function TransactionsManagementPage() {
     if (typeof window === 'undefined') return
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast.error('Camera not supported on this device')
+      toast.error('Kamera tidak didukung pada perangkat ini')
       return
     }
 
@@ -123,7 +123,7 @@ export default function TransactionsManagementPage() {
       stream.getTracks().forEach(track => track.stop())
     } catch (error: any) {
       console.error('Camera permission error', error)
-      toast.error(error?.message || 'Unable to access camera. Please check permissions and try again.')
+      toast.error(error?.message || 'Tidak dapat mengakses kamera. Periksa izin lalu coba lagi.')
     }
   }
 
@@ -132,7 +132,7 @@ export default function TransactionsManagementPage() {
     setScannerDeviceId(undefined)
 
     if (!text) {
-      toast.error('Scanned code was empty.')
+      toast.error('Kode yang dipindai kosong.')
       return
     }
 
@@ -141,7 +141,7 @@ export default function TransactionsManagementPage() {
 
     if (match) {
       handleSelectCustomer(match)
-      toast.success(`Customer ${match.full_name || match.phone || 'found'} selected`)
+      toast.success(`Pelanggan ${match.full_name || match.phone || 'ditemukan'} dipilih`)
       return
     }
 
@@ -153,7 +153,7 @@ export default function TransactionsManagementPage() {
         .single()
 
       if (error || !data) {
-        throw error || new Error('Customer not found')
+        throw error || new Error('Pelanggan tidak ditemukan')
       }
 
       const profile = data as Profile
@@ -162,10 +162,10 @@ export default function TransactionsManagementPage() {
         return [...prev, profile]
       })
       handleSelectCustomer(profile)
-      toast.success(`Customer ${profile.full_name || profile.phone || 'found'} selected`)
+      toast.success(`Pelanggan ${profile.full_name || profile.phone || 'ditemukan'} dipilih`)
     } catch (error: any) {
       console.error('Error fetching customer from QR', error)
-      toast.error(error?.message || 'Failed to find customer from QR')
+      toast.error(error?.message || 'Tidak dapat menemukan pelanggan dari QR')
     }
   }
 
@@ -185,7 +185,7 @@ export default function TransactionsManagementPage() {
         .single()
 
       if (!profileData || profileData.role !== 'admin') {
-        toast.error('Unauthorized access')
+        toast.error('Akses tidak sah')
         router.push('/auth/login')
         return
       }
@@ -270,14 +270,14 @@ export default function TransactionsManagementPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load transactions')
+      toast.error('Gagal memuat transaksi')
     } finally {
       setLoading(false)
     }
   }
 
   async function handleCancelTransaction(transactionId: string) {
-    if (!confirm('Are you sure you want to cancel this transaction? Points/stamps will be deducted from the customer.')) {
+    if (!confirm('Apakah Anda yakin ingin membatalkan transaksi ini? Poin/stempel pelanggan akan dikurangi.')) {
       return
     }
 
@@ -310,16 +310,16 @@ export default function TransactionsManagementPage() {
         )
       }
 
-      toast.success('Transaction cancelled successfully')
+      toast.success('Transaksi berhasil dibatalkan')
       loadData()
     } catch (error: any) {
       console.error('Error cancelling transaction:', error)
-      toast.error(error.message || 'Failed to cancel transaction')
+      toast.error(error.message || 'Gagal membatalkan transaksi')
     }
   }
 
   async function handleDeleteTransaction(transactionId: string) {
-    if (!confirm('Are you sure you want to permanently delete this cancelled transaction? This action cannot be undone.')) {
+    if (!confirm('Apakah Anda yakin ingin menghapus permanen transaksi yang dibatalkan ini? Tindakan ini tidak dapat dibatalkan.')) {
       return
     }
 
@@ -349,23 +349,23 @@ export default function TransactionsManagementPage() {
         )
       }
 
-      toast.success('Transaction deleted successfully')
+      toast.success('Transaksi berhasil dihapus')
       loadData()
     } catch (error: any) {
       console.error('Error deleting transaction:', error)
-      toast.error(error.message || 'Failed to delete transaction')
+      toast.error(error.message || 'Gagal menghapus transaksi')
     }
   }
 
   async function handleAddTransaction() {
     if (!restaurant || !selectedCustomerId || !amount) {
-      toast.error('Please fill in all fields')
+      toast.error('Mohon lengkapi semua kolom')
       return
     }
 
     const amountNum = parseFloat(amount)
     if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid amount')
+      toast.error('Masukkan nominal yang valid')
       return
     }
 
@@ -391,7 +391,7 @@ export default function TransactionsManagementPage() {
           .single()
 
         if (existingTransaction) {
-          toast.error('Customer already earned stamps today')
+          toast.error('Pelanggan sudah mendapat stempel hari ini')
           return
         }
       }
@@ -406,7 +406,7 @@ export default function TransactionsManagementPage() {
 
       if (error) throw error
 
-      toast.success(`Transaction added! Customer earned ${earned} ${isStampMode ? 'stamps' : 'points'}`)
+      toast.success(`Transaksi ditambahkan! Pelanggan mendapatkan ${earned} ${isStampMode ? 'stempel' : 'poin'}`)
       setShowForm(false)
       setSelectedCustomerId('')
       setSelectedCustomer(null)
@@ -415,7 +415,7 @@ export default function TransactionsManagementPage() {
       loadData()
     } catch (error: any) {
       console.error('Error adding transaction:', error)
-      toast.error(error.message || 'Failed to add transaction')
+      toast.error(error.message || 'Gagal menambahkan transaksi')
     }
   }
 
@@ -437,8 +437,8 @@ export default function TransactionsManagementPage() {
               setShowScanner(false)
               setScannerDeviceId(undefined)
             }}
-            title="Scan Customer QR"
-            description="Place the customer's QR code in front of the camera to select them instantly."
+            title="Pindai QR Pelanggan"
+            description="Arahkan kode QR pelanggan ke kamera untuk memilih secara instan."
             deviceId={scannerDeviceId}
           />
         )}
@@ -450,24 +450,24 @@ export default function TransactionsManagementPage() {
             >
               <ArrowLeft className="h-6 w-6" />
             </button>
-            <h1 className="text-2xl font-bold">Add Transaction</h1>
+            <h1 className="text-2xl font-bold">Tambah Transaksi</h1>
           </div>
         </div>
 
         <div className="px-6 py-6 space-y-4">
           <div>
-            <label className="label">Select Customer *</label>
-            
+            <label className="label">Pilih Pelanggan *</label>
+
             {selectedCustomer ? (
               <div className="card bg-primary/5 border-2 border-primary">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-lg">{selectedCustomer.full_name || 'Unknown'}</p>
+                    <p className="font-semibold text-lg">{selectedCustomer.full_name || 'Tidak diketahui'}</p>
                     <p className="text-sm text-gray-600">{selectedCustomer.phone || selectedCustomer.email}</p>
                     <div className="flex items-center gap-4 mt-2">
                       <span className="text-sm">
                         <strong>{restaurant?.loyalty_mode === 'stamps' ? selectedCustomer.stamps : selectedCustomer.points}</strong>
-                        {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                        {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stempel' : 'poin'}
                       </span>
                     </div>
                   </div>
@@ -495,7 +495,7 @@ export default function TransactionsManagementPage() {
                     }}
                     onFocus={() => setShowCustomerSearch(true)}
                     className="input-field pl-10"
-                    placeholder="Search by name, phone, or email..."
+                    placeholder="Cari nama, telepon, atau email..."
                   />
 
                   {showCustomerSearch && filteredCustomers.length > 0 && (
@@ -506,11 +506,11 @@ export default function TransactionsManagementPage() {
                           onClick={() => handleSelectCustomer(customer)}
                           className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
                         >
-                          <p className="font-semibold">{customer.full_name || 'Unknown'}</p>
+                          <p className="font-semibold">{customer.full_name || 'Tidak diketahui'}</p>
                           <p className="text-sm text-gray-600">{customer.phone || customer.email}</p>
                           <p className="text-xs text-gray-500 mt-1">
                             {restaurant?.loyalty_mode === 'stamps' ? customer.stamps : customer.points}
-                            {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                            {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stempel' : 'poin'}
                           </p>
                         </button>
                       ))}
@@ -524,7 +524,7 @@ export default function TransactionsManagementPage() {
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold transition-colors"
                 >
                   <QrCode className="h-5 w-5" />
-                  Scan Customer QR
+                  Pindai QR Pelanggan
                 </button>
               </div>
             )}
@@ -532,7 +532,7 @@ export default function TransactionsManagementPage() {
           </div>
 
           <div>
-            <label className="label">Transaction Amount (Rp.) *</label>
+            <label className="label">Jumlah Transaksi (Rp) *</label>
             <input
               type="number"
               value={amount}
@@ -547,7 +547,7 @@ export default function TransactionsManagementPage() {
           {restaurant && renderEarningsPreview(restaurant, amount)}
 
           <button onClick={handleAddTransaction} className="btn-primary w-full">
-            Add Transaction
+            Simpan Transaksi
           </button>
         </div>
       </div>
@@ -563,8 +563,8 @@ export default function TransactionsManagementPage() {
             setShowScanner(false)
             setScannerDeviceId(undefined)
           }}
-          title="Scan Customer QR"
-          description="Place the customer's QR code in front of the camera to select them instantly."
+          title="Pindai QR Pelanggan"
+          description="Arahkan kode QR pelanggan ke kamera untuk memilih secara instan."
           deviceId={scannerDeviceId}
         />
       )}
@@ -577,14 +577,14 @@ export default function TransactionsManagementPage() {
             >
               <ArrowLeft className="h-6 w-6" />
             </button>
-            <h1 className="text-2xl font-bold">Transactions</h1>
+            <h1 className="text-2xl font-bold">Transaksi</h1>
           </div>
           <button
             onClick={() => setShowForm(true)}
             className="bg-white text-primary px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
           >
             <Plus className="h-5 w-5 inline mr-1" />
-            New
+            Tambah
           </button>
         </div>
       </div>
@@ -604,7 +604,7 @@ export default function TransactionsManagementPage() {
                 : 'text-gray-500'
             }`}
           >
-            Today
+            Hari Ini
           </button>
           <button
             onClick={() => {
@@ -617,7 +617,7 @@ export default function TransactionsManagementPage() {
                 : 'text-gray-500'
             }`}
           >
-            Older
+            Lebih Lama
           </button>
           <button
             onClick={() => {
@@ -631,7 +631,7 @@ export default function TransactionsManagementPage() {
                 : 'text-gray-500'
             }`}
           >
-            Cancelled
+            Dibatalkan
           </button>
         </div>
       </div>
@@ -649,14 +649,14 @@ export default function TransactionsManagementPage() {
                 setCurrentPage(1)
               }}
               className="input-field flex-1"
-              placeholder="Filter by date"
+              placeholder="Filter berdasarkan tanggal"
             />
             {dateFilter && (
               <button
                 onClick={() => setDateFilter('')}
                 className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                Clear
+                Kosongkan
               </button>
             )}
           </div>
@@ -667,9 +667,9 @@ export default function TransactionsManagementPage() {
         {transactions.length === 0 ? (
           <div className="card text-center py-12">
             <TrendingUp className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No transactions yet</p>
+            <p className="text-gray-500 mb-4">Belum ada transaksi</p>
             <button onClick={() => setShowForm(true)} className="btn-primary">
-              Add First Transaction
+              Tambah Transaksi Pertama
             </button>
           </div>
         ) : (
@@ -682,14 +682,14 @@ export default function TransactionsManagementPage() {
                       {formatCurrency(transaction.amount)}
                     </h3>
                     <p className="text-sm text-gray-600 mb-1">
-                      {transaction.customer?.full_name || transaction.customer?.phone || transaction.customer?.email || 'Unknown Customer'}
+                      {transaction.customer?.full_name || transaction.customer?.phone || transaction.customer?.email || 'Pelanggan tidak dikenal'}
                     </p>
                     <p className="text-xs text-gray-500">
                       {formatDateTime(transaction.created_at)}
                     </p>
                     {transaction.transaction_date && (
                       <p className="text-xs text-gray-400 mt-1">
-                        Date: {new Date(transaction.transaction_date).toLocaleDateString('id-ID')}
+                        Tanggal: {new Date(transaction.transaction_date).toLocaleDateString('id-ID')}
                       </p>
                     )}
                   </div>
@@ -698,18 +698,18 @@ export default function TransactionsManagementPage() {
                       <p className={`font-semibold ${transaction.status === 'cancelled' ? 'text-red-600' : 'text-green-600'}`}>
                         {transaction.status === 'cancelled' ? '-' : '+'}
                         {transaction.stamps_earned > 0
-                          ? `${transaction.stamps_earned} stamps`
-                          : `${transaction.points_earned} points`}
+                          ? `${transaction.stamps_earned} stempel`
+                          : `${transaction.points_earned} poin`}
                       </p>
                       {transaction.status === 'cancelled' && (
-                        <span className="text-xs text-red-600">Cancelled</span>
+                        <span className="text-xs text-red-600">Dibatalkan</span>
                       )}
                     </div>
                     {activeTab === 'cancelled' ? (
                       <button
                         onClick={() => handleDeleteTransaction(transaction.id)}
                         className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                        title="Permanently delete transaction"
+                        title="Hapus transaksi secara permanen"
                       >
                         <Trash2 className="h-5 w-5 text-red-600" />
                       </button>
@@ -717,7 +717,7 @@ export default function TransactionsManagementPage() {
                       <button
                         onClick={() => handleCancelTransaction(transaction.id)}
                         className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                        title="Cancel transaction"
+                        title="Batalkan transaksi"
                       >
                         <Trash2 className="h-5 w-5 text-red-600" />
                       </button>
@@ -737,17 +737,17 @@ export default function TransactionsManagementPage() {
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Previous
+                    Sebelumnya
                   </button>
                   <span className="text-sm text-gray-600">
-                    Page {currentPage} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                    Halaman {currentPage} dari {Math.ceil(totalCount / ITEMS_PER_PAGE)}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), p + 1))}
                     disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Next
+                    Berikutnya
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Redemption } from '@/lib/types/database'
@@ -22,6 +22,16 @@ export default function RedemptionsManagementPage() {
   const [showScanner, setShowScanner] = useState(false)
   const [scannedRedemptionCode, setScannedRedemptionCode] = useState<string>('')
   const ITEMS_PER_PAGE = 10
+
+  const statusLabels = useMemo(
+    () => ({
+      all: 'Semua',
+      pending: 'Menunggu',
+      verified: 'Terverifikasi',
+      cancelled: 'Dibatalkan',
+    }),
+    []
+  )
 
   useEffect(() => {
     loadData()
@@ -71,7 +81,7 @@ export default function RedemptionsManagementPage() {
         .single()
 
       if (!profileData || profileData.role !== 'admin') {
-        toast.error('Unauthorized access')
+        toast.error('Akses tidak sah')
         router.push('/auth/login')
         return
       }
@@ -115,7 +125,7 @@ export default function RedemptionsManagementPage() {
       }
     } catch (error) {
       console.error('Error loading data:', error)
-      toast.error('Failed to load redemptions')
+      toast.error('Gagal memuat penukaran')
     } finally {
       setLoading(false)
     }
@@ -146,7 +156,7 @@ export default function RedemptionsManagementPage() {
 
     const value = text.trim()
     if (!value) {
-      toast.error('Scanned code was empty.')
+      toast.error('Kode yang dipindai kosong.')
       return
     }
 
@@ -155,9 +165,9 @@ export default function RedemptionsManagementPage() {
 
     const match = redemptions.find(r => r.redemption_code === value)
     if (match) {
-      toast.success('Redemption found and filtered')
+      toast.success('Penukaran ditemukan dan difilter')
     } else {
-      toast.error('No redemption found for this code')
+      toast.error('Tidak ada penukaran dengan kode ini')
     }
   }
 
@@ -180,16 +190,16 @@ export default function RedemptionsManagementPage() {
 
       if (error) throw error
 
-      toast.success('Redemption verified!')
+      toast.success('Penukaran berhasil diverifikasi!')
       loadData()
     } catch (error: any) {
       console.error('Error verifying redemption:', error)
-      toast.error(error.message || 'Failed to verify redemption')
+      toast.error(error.message || 'Gagal memverifikasi penukaran')
     }
   }
 
   async function handleCancel(redemption: Redemption) {
-    if (!confirm('Are you sure you want to cancel this redemption?')) return
+    if (!confirm('Apakah Anda yakin ingin membatalkan penukaran ini?')) return
 
     try {
       const { error } = await supabase
@@ -199,11 +209,11 @@ export default function RedemptionsManagementPage() {
 
       if (error) throw error
 
-      toast.success('Redemption cancelled!')
+      toast.success('Penukaran berhasil dibatalkan!')
       loadData()
     } catch (error: any) {
       console.error('Error cancelling redemption:', error)
-      toast.error(error.message || 'Failed to cancel redemption')
+      toast.error(error.message || 'Gagal membatalkan penukaran')
     }
   }
 
@@ -222,8 +232,8 @@ export default function RedemptionsManagementPage() {
           <QRScanner
             onResult={handleScanResult}
             onClose={() => setShowScanner(false)}
-            title="Scan Reward QR"
-            description="Scan a reward redemption QR code to locate it quickly."
+            title="Pindai QR Hadiah"
+            description="Pindai kode QR penukaran hadiah untuk menemukannya dengan cepat."
           />
         )}
         <div className="flex items-center gap-4 mb-4">
@@ -233,7 +243,7 @@ export default function RedemptionsManagementPage() {
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-2xl font-bold">Redemptions</h1>
+          <h1 className="text-2xl font-bold">Penukaran</h1>
         </div>
 
         {/* Search */}
@@ -244,7 +254,7 @@ export default function RedemptionsManagementPage() {
               type="text"
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
-              placeholder="Search by redemption code..."
+              placeholder="Cari berdasarkan kode penukaran..."
               className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900"
             />
           </div>
@@ -254,7 +264,7 @@ export default function RedemptionsManagementPage() {
               className="flex items-center gap-2 px-4 py-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-semibold transition-colors"
             >
               <QrCode className="h-5 w-5" />
-              Scan QR
+              Pindai QR
             </button>
             {scannedRedemptionCode && (
               <button
@@ -262,7 +272,7 @@ export default function RedemptionsManagementPage() {
                 className="flex items-center gap-2 px-4 py-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors"
               >
                 <X className="h-5 w-5" />
-                Clear QR Filter
+                Hapus Filter QR
               </button>
             )}
           </div>
@@ -282,7 +292,7 @@ export default function RedemptionsManagementPage() {
                   : 'text-gray-500'
               }`}
             >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+              {statusLabels[status]}
             </button>
           ))}
         </div>
@@ -291,7 +301,7 @@ export default function RedemptionsManagementPage() {
       <div className="px-6 mt-6 space-y-4">
         {filteredRedemptions.length === 0 ? (
           <div className="card text-center py-12">
-            <p className="text-gray-500">No redemptions found</p>
+            <p className="text-gray-500">Tidak ada penukaran</p>
           </div>
         ) : (
           <>
@@ -303,7 +313,7 @@ export default function RedemptionsManagementPage() {
                     {redemption.reward_title}
                   </h3>
                   <p className="text-sm text-gray-600 mb-1">
-                    {redemption.customer?.full_name || redemption.customer?.phone || redemption.customer?.email || 'Unknown Customer'}
+                    {redemption.customer?.full_name || redemption.customer?.phone || redemption.customer?.email || 'Pelanggan tidak dikenal'}
                   </p>
                   <p className="text-xs text-gray-500">
                     {formatDateTime(redemption.created_at)}
@@ -318,23 +328,23 @@ export default function RedemptionsManagementPage() {
                       : 'bg-red-100 text-red-700'
                   }`}
                 >
-                  {redemption.status}
+                  {statusLabels[redemption.status as 'pending' | 'verified' | 'cancelled']}
                 </span>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                <p className="text-xs text-gray-600 mb-1">Redemption Code</p>
+                <p className="text-xs text-gray-600 mb-1">Kode Penukaran</p>
                 <p className="font-mono font-bold text-lg text-primary">
                   {redemption.redemption_code}
                 </p>
               </div>
 
               <div className="flex items-center justify-between text-sm mb-3">
-                <span className="text-gray-600">Cost:</span>
+                <span className="text-gray-600">Biaya:</span>
                 <span className="font-semibold">
                   {redemption.stamps_used > 0
-                    ? `${redemption.stamps_used} stamps`
-                    : `${redemption.points_used} points`}
+                    ? `${redemption.stamps_used} stempel`
+                    : `${redemption.points_used} poin`}
                 </span>
               </div>
 
@@ -345,21 +355,21 @@ export default function RedemptionsManagementPage() {
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors"
                   >
                     <CheckCircle className="h-4 w-4 inline mr-1" />
-                    Verify
+                    Verifikasi
                   </button>
                   <button
                     onClick={() => handleCancel(redemption)}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition-colors"
                   >
                     <XCircle className="h-4 w-4 inline mr-1" />
-                    Cancel
+                    Batalkan
                   </button>
                 </div>
               )}
 
               {redemption.verified_at && (
                 <p className="text-xs text-gray-500 mt-2">
-                  Verified: {formatDateTime(redemption.verified_at)}
+                  Terverifikasi: {formatDateTime(redemption.verified_at)}
                 </p>
               )}
             </div>
@@ -375,17 +385,17 @@ export default function RedemptionsManagementPage() {
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Previous
+                    Sebelumnya
                   </button>
                   <span className="text-sm text-gray-600">
-                    Page {currentPage} of {Math.ceil(totalCount / ITEMS_PER_PAGE)}
+                    Halaman {currentPage} dari {Math.ceil(totalCount / ITEMS_PER_PAGE)}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), p + 1))}
                     disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Next
+                    Berikutnya
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
