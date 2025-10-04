@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant, Transaction } from '@/lib/types/database'
-import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Plus, TrendingUp, Search, X, Trash2, Calendar, ChevronLeft, ChevronRight, QrCode } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime, formatCurrency } from '@/lib/utils/format'
 import { logActivity } from '@/lib/utils/activity-log'
 import { applyThemeColors } from '@/lib/utils/theme'
+import { QRScanner } from '@/components/QRScanner'
 
 type TabType = 'today' | 'older' | 'cancelled'
 
@@ -33,6 +34,8 @@ export default function TransactionsManagementPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [filteredCustomers, setFilteredCustomers] = useState<Profile[]>([])
+  const [showScanner, setShowScanner] = useState(false)
+  const [scannerDeviceId, setScannerDeviceId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     loadData()
@@ -53,11 +56,117 @@ export default function TransactionsManagementPage() {
     }
   }, [searchQuery, customers])
 
+  function renderEarningsPreview(currentRestaurant: Restaurant, amountValue: string) {
+    const parsedAmount = parseFloat(amountValue)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return null
+    }
+
+    const isStampMode = currentRestaurant.loyalty_mode === 'stamps'
+
+    if (isStampMode) {
+      const ratioAmount = Number(currentRestaurant.stamp_ratio_amount) || 1
+      const ratioStamps = Number(currentRestaurant.stamp_ratio_stamps) || 1
+      const earnedStamps = Math.floor(parsedAmount / ratioAmount) * ratioStamps
+
+      return (
+        <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
+          <p className="text-sm text-gray-700 mb-2">Customer will earn:</p>
+          <p className="text-2xl font-bold text-primary">{earnedStamps} stamps</p>
+        </div>
+      )
+    }
+
+    const ratioAmount = Number(currentRestaurant.points_ratio_amount) || 1
+    const ratioPoints = Number(currentRestaurant.points_ratio_points) || 1
+    const earnedPoints = Math.floor(parsedAmount / ratioAmount) * ratioPoints
+
+    return (
+      <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
+        <p className="text-sm text-gray-700 mb-2">Customer will earn:</p>
+        <p className="text-2xl font-bold text-primary">{earnedPoints} points</p>
+      </div>
+    )
+  }
+
   function handleSelectCustomer(customer: Profile) {
     setSelectedCustomer(customer)
     setSelectedCustomerId(customer.id)
     setShowCustomerSearch(false)
     setSearchQuery('')
+  }
+
+  async function handleOpenScanner() {
+    if (typeof window === 'undefined') return
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error('Camera not supported on this device')
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+        },
+      })
+
+      const [track] = stream.getVideoTracks()
+      const deviceId = track?.getSettings()?.deviceId
+      if (deviceId) {
+        setScannerDeviceId(deviceId)
+      } else {
+        setScannerDeviceId(undefined)
+      }
+
+      setShowScanner(true)
+      stream.getTracks().forEach(track => track.stop())
+    } catch (error: any) {
+      console.error('Camera permission error', error)
+      toast.error(error?.message || 'Unable to access camera. Please check permissions and try again.')
+    }
+  }
+
+  async function handleScanResult(text: string) {
+    setShowScanner(false)
+    setScannerDeviceId(undefined)
+
+    if (!text) {
+      toast.error('Scanned code was empty.')
+      return
+    }
+
+    const uid = text.trim()
+    const match = customers.find(customer => customer.id === uid)
+
+    if (match) {
+      handleSelectCustomer(match)
+      toast.success(`Customer ${match.full_name || match.phone || 'found'} selected`)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .single()
+
+      if (error || !data) {
+        throw error || new Error('Customer not found')
+      }
+
+      const profile = data as Profile
+      setCustomers(prev => {
+        if (prev.some(c => c.id === profile.id)) return prev
+        return [...prev, profile]
+      })
+      handleSelectCustomer(profile)
+      toast.success(`Customer ${profile.full_name || profile.phone || 'found'} selected`)
+    } catch (error: any) {
+      console.error('Error fetching customer from QR', error)
+      toast.error(error?.message || 'Failed to find customer from QR')
+    }
   }
 
   async function loadData() {
@@ -321,6 +430,18 @@ export default function TransactionsManagementPage() {
   if (showForm) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
+        {showScanner && (
+          <QRScanner
+            onResult={handleScanResult}
+            onClose={() => {
+              setShowScanner(false)
+              setScannerDeviceId(undefined)
+            }}
+            title="Scan Customer QR"
+            description="Place the customer's QR code in front of the camera to select them instantly."
+            deviceId={scannerDeviceId}
+          />
+        )}
         <div className="bg-gradient-to-r from-primary to-secondary text-white p-6">
           <div className="flex items-center gap-4">
             <button
@@ -362,7 +483,7 @@ export default function TransactionsManagementPage() {
                 </div>
               </div>
             ) : (
-              <div>
+              <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <input
@@ -376,28 +497,38 @@ export default function TransactionsManagementPage() {
                     className="input-field pl-10"
                     placeholder="Search by name, phone, or email..."
                   />
+
+                  {showCustomerSearch && filteredCustomers.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredCustomers.map((customer) => (
+                        <button
+                          key={customer.id}
+                          onClick={() => handleSelectCustomer(customer)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+                        >
+                          <p className="font-semibold">{customer.full_name || 'Unknown'}</p>
+                          <p className="text-sm text-gray-600">{customer.phone || customer.email}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {restaurant?.loyalty_mode === 'stamps' ? customer.stamps : customer.points}
+                            {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
-                {showCustomerSearch && filteredCustomers.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {filteredCustomers.map((customer) => (
-                      <button
-                        key={customer.id}
-                        onClick={() => handleSelectCustomer(customer)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b last:border-b-0 transition-colors"
-                      >
-                        <p className="font-semibold">{customer.full_name || 'Unknown'}</p>
-                        <p className="text-sm text-gray-600">{customer.phone || customer.email}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {restaurant?.loyalty_mode === 'stamps' ? customer.stamps : customer.points}
-                          {' '}{restaurant?.loyalty_mode === 'stamps' ? 'stamps' : 'points'}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+                <button
+                  type="button"
+                  onClick={handleOpenScanner}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold transition-colors"
+                >
+                  <QrCode className="h-5 w-5" />
+                  Scan Customer QR
+                </button>
               </div>
             )}
+
           </div>
 
           <div>
@@ -413,16 +544,7 @@ export default function TransactionsManagementPage() {
             />
           </div>
 
-          {amount && restaurant && (
-            <div className="card bg-gradient-to-br from-accent/20 to-secondary/20">
-              <p className="text-sm text-gray-700 mb-2">Customer will earn:</p>
-              <p className="text-2xl font-bold text-primary">
-                {restaurant.loyalty_mode === 'stamps'
-                  ? `${Math.floor(parseFloat(amount) / restaurant.stamp_ratio_amount) * restaurant.stamp_ratio_stamps} stamps`
-                  : `${Math.floor(parseFloat(amount) / restaurant.points_ratio_amount) * restaurant.points_ratio_points} points`}
-              </p>
-            </div>
-          )}
+          {restaurant && renderEarningsPreview(restaurant, amount)}
 
           <button onClick={handleAddTransaction} className="btn-primary w-full">
             Add Transaction
@@ -434,6 +556,18 @@ export default function TransactionsManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      {showScanner && (
+        <QRScanner
+          onResult={handleScanResult}
+          onClose={() => {
+            setShowScanner(false)
+            setScannerDeviceId(undefined)
+          }}
+          title="Scan Customer QR"
+          description="Place the customer's QR code in front of the camera to select them instantly."
+          deviceId={scannerDeviceId}
+        />
+      )}
       <div className="bg-gradient-to-r from-primary to-secondary text-white p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

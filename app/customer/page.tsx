@@ -8,6 +8,7 @@ import { Gift, Award, User, LogOut, ChevronLeft, ChevronRight } from 'lucide-rea
 import toast from 'react-hot-toast'
 import Image from 'next/image'
 import { applyThemeColors } from '@/lib/utils/theme'
+import { generateQRCode } from '@/lib/utils/qr-code'
 
 export default function CustomerHomePage() {
   const router = useRouter()
@@ -16,6 +17,8 @@ export default function CustomerHomePage() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0)
+  const [qrCode, setQrCode] = useState<string>('')
+  const [qrLoading, setQrLoading] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -80,6 +83,38 @@ export default function CustomerHomePage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!profile?.id) {
+      setQrCode('')
+      return
+    }
+
+    let cancelled = false
+    setQrLoading(true)
+    generateQRCode(profile.id)
+      .then(code => {
+        if (!cancelled) {
+          setQrCode(code)
+        }
+      })
+      .catch(error => {
+        if (!cancelled) {
+          console.error('Error generating customer QR:', error)
+          toast.error('Failed to generate QR code')
+          setQrCode('')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setQrLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.id])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -226,6 +261,37 @@ export default function CustomerHomePage() {
             <Award className="h-10 w-10 text-primary mb-3" />
             <span className="font-semibold">History</span>
           </button>
+        </div>
+      </div>
+
+      {/* My QR Code */}
+      <div className="px-6 mt-6">
+        <div className="card flex flex-col items-center gap-4 text-center">
+          <h2 className="text-lg font-semibold">My Loyalty QR Code</h2>
+          <p className="text-sm text-gray-600">
+            Show this QR code to the staff to earn points or redeem rewards quickly.
+          </p>
+          <div className="w-48 h-48 bg-white border rounded-2xl flex items-center justify-center">
+            {qrLoading ? (
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+            ) : qrCode ? (
+              <img src={qrCode} alt="Customer QR code" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-sm text-gray-500">QR code unavailable</span>
+            )}
+          </div>
+          {qrCode && (
+            <a
+              href={qrCode}
+              download={`loyalty-${profile?.id || 'qr'}.png`}
+              className="btn-primary w-full sm:w-auto"
+            >
+              Download QR Code
+            </a>
+          )}
+          {profile?.id && (
+            <p className="text-xs text-gray-400">ID: {profile.id}</p>
+          )}
         </div>
       </div>
 

@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Restaurant } from '@/lib/types/database'
-import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight, Edit, Trash2, Coins, Search, Download, Upload } from 'lucide-react'
+import { ArrowLeft, Users, Award, Gift, Plus, UserPlus, ChevronLeft, ChevronRight, Edit, Trash2, Coins, Search, Download, Upload, QrCode } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { exportToCSV, formatCustomersForCSV, parseCSVToCustomers } from '@/lib/utils/csv-export'
 import { logActivity } from '@/lib/utils/activity-log'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { applyThemeColors } from '@/lib/utils/theme'
+import { generateQRCode } from '@/lib/utils/qr-code'
 
 export default function CustomersManagementPage() {
   const router = useRouter()
@@ -48,6 +49,8 @@ export default function CustomersManagementPage() {
   
   // CSV import state
   const [importing, setImporting] = useState(false)
+  const [qrCodes, setQrCodes] = useState<Record<string, string>>({})
+  const [qrLoadingId, setQrLoadingId] = useState<string>('')
 
   const loadData = useCallback(async () => {
     console.log('Loading customers data...')
@@ -140,6 +143,26 @@ export default function CustomersManagementPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  async function handleGenerateQr(customer: Profile) {
+    if (!customer.id) return
+
+    if (qrCodes[customer.id]) {
+      setQrCodes(prev => ({ ...prev, [customer.id]: prev[customer.id] }))
+      return
+    }
+
+    setQrLoadingId(customer.id)
+    try {
+      const code = await generateQRCode(customer.id)
+      setQrCodes(prev => ({ ...prev, [customer.id]: code }))
+    } catch (error) {
+      console.error('Error generating customer QR:', error)
+      toast.error('Failed to generate QR code')
+    } finally {
+      setQrLoadingId('')
+    }
+  }
 
   async function handleAddCustomer() {
     if (!restaurant || !profile || !newCustomerPhone) {
@@ -835,13 +858,35 @@ export default function CustomersManagementPage() {
                   </p>
                 </div>
               </div>
+
+              <div className="mt-4 border-t pt-4 space-y-3">
+                <button
+                  onClick={() => handleGenerateQr(customer)}
+                  className="btn-secondary w-full flex items-center justify-center gap-2"
+                >
+                  <QrCode className="h-4 w-4" />
+                  {qrLoadingId === customer.id ? 'Generating QR…' : 'Show QR Code'}
+                </button>
+
+                {qrCodes[customer.id] && (
+                  <div className="bg-white border rounded-lg p-3 text-center shadow-sm">
+                    <img src={qrCodes[customer.id]} alt="Customer QR" className="w-24 h-24 object-contain mx-auto" />
+                    <a
+                      href={qrCodes[customer.id]}
+                      download={`customer-${customer.id}.png`}
+                      className="inline-block mt-2 text-xs text-primary underline"
+                    >
+                      Download QR
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           ))
         )}
 
-        {/* Pagination */}
         {totalCount > ITEMS_PER_PAGE && (
-          <div className="card">
+          <div className="card mt-6">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}

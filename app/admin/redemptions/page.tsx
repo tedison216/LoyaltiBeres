@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Redemption } from '@/lib/types/database'
-import { ArrowLeft, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, QrCode, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDateTime } from '@/lib/utils/format'
+import { QRScanner } from '@/components/QRScanner'
 
 export default function RedemptionsManagementPage() {
   const router = useRouter()
@@ -18,6 +19,8 @@ export default function RedemptionsManagementPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'cancelled'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [showScanner, setShowScanner] = useState(false)
+  const [scannedRedemptionCode, setScannedRedemptionCode] = useState<string>('')
   const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function RedemptionsManagementPage() {
 
   useEffect(() => {
     filterRedemptions()
-  }, [redemptions, searchCode])
+  }, [redemptions, searchCode, scannedRedemptionCode])
 
   async function loadData() {
     try {
@@ -131,7 +134,35 @@ export default function RedemptionsManagementPage() {
       )
     }
 
+    if (scannedRedemptionCode) {
+      filtered = filtered.filter(r => r.redemption_code === scannedRedemptionCode)
+    }
+
     setFilteredRedemptions(filtered)
+  }
+
+  async function handleScanResult(text: string) {
+    setShowScanner(false)
+
+    const value = text.trim()
+    if (!value) {
+      toast.error('Scanned code was empty.')
+      return
+    }
+
+    setScannedRedemptionCode(value)
+    setSearchCode('')
+
+    const match = redemptions.find(r => r.redemption_code === value)
+    if (match) {
+      toast.success('Redemption found and filtered')
+    } else {
+      toast.error('No redemption found for this code')
+    }
+  }
+
+  function clearScanFilter() {
+    setScannedRedemptionCode('')
   }
 
   async function handleVerify(redemption: Redemption) {
@@ -187,6 +218,14 @@ export default function RedemptionsManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-gradient-to-r from-primary to-secondary text-white p-6">
+        {showScanner && (
+          <QRScanner
+            onResult={handleScanResult}
+            onClose={() => setShowScanner(false)}
+            title="Scan Reward QR"
+            description="Scan a reward redemption QR code to locate it quickly."
+          />
+        )}
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={() => router.back()}
@@ -198,15 +237,35 @@ export default function RedemptionsManagementPage() {
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value)}
-            placeholder="Search by code..."
-            className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchCode}
+              onChange={(e) => setSearchCode(e.target.value)}
+              placeholder="Search by redemption code..."
+              className="w-full pl-10 pr-4 py-3 rounded-lg text-gray-900"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowScanner(true)}
+              className="flex items-center gap-2 px-4 py-3 rounded-lg bg-white/20 hover:bg-white/30 text-white font-semibold transition-colors"
+            >
+              <QrCode className="h-5 w-5" />
+              Scan QR
+            </button>
+            {scannedRedemptionCode && (
+              <button
+                onClick={clearScanFilter}
+                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors"
+              >
+                <X className="h-5 w-5" />
+                Clear QR Filter
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
