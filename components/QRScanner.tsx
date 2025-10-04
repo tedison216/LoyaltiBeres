@@ -345,7 +345,7 @@ export function QRScanner({ onResult, onClose, title = 'Scan QR Code', descripti
         </div>
 
         <p className="text-xs text-gray-500 text-center">
-          Align the customer's QR code within the frame. Capture a photo if live preview is unavailable.
+          Align the customer&apos;s QR code within the frame. Capture a photo if live preview is unavailable.
         </p>
       </div>
     </div>
